@@ -198,12 +198,42 @@ sperling_p[25,] <- c(2, NA) # tau.s
 sperling_p[26,] <- c(2, NA) # tau.t
 sperling_p[27,] <- c(0.3246781, NA) # starch00
 sperling_p[28,] <- c(0.4184208, NA) # sugar00
+sperling_p[31,] <- c(3, NA)   # Q10s As taken from a crop study for the tree study this model is based on I am assuming that these numbers can be generalised here as well
+sperling_p[32,] <- c(1.8, NA)  # Q10d As taken from a crop study for the tree study this model is based on I am assuming that these numbers can be generalised here as well
+sperling_p[33,] <- c(0.23, NA) # SCb kg C, just above lowest value in starch and sugar 15_16 -- JS notes
+sperling_p[34,] <- c(0.41, NA) # sugar.level, 23/9/2015, Sugar, starch and sugar 15_16 -- JS notes kg C, "assumed to equal SC at senescence"
+sperling_p[35,] <- c(0.017, NA) # Ad0.needles
+sperling_p[36,] <- c(0.008, NA) # Ad0.phloem
+sperling_p[37,] <- c(2e-04, NA) # Ad0.roots
+sperling_p[38,] <- c(2e-04, NA) # Ad0.xylem.sh
+sperling_p[39,] <- c(0.047, NA) # Ad0.xylem.st
+sperling_p[40,] <- c(0.197, NA) # lamda.needles
+sperling_p[41,] <- c(0.05301, NA) # lamda.phloem
+sperling_p[42,] <- c(0.211, NA) # lamda.roots
+sperling_p[43,] <- c(0.00401, NA) # lamda.xylem.sh
+sperling_p[44,] <- c(0.00401, NA) # lamda.xylem.st
+sperling_p[45,] <- c(0.729, NA) # delta.needles
+sperling_p[46,] <- c(0.832, NA) # delta.phloem
+sperling_p[47,] <- c(0.853, NA) # delta.roots
+sperling_p[48,] <- c(0.762, NA) # delta.xylem.sh
+sperling_p[49,] <- c(0.294, NA) # delta.xylem.st
+sperling_p[50,] <- c(0.3, NA) # k_np
+sperling_p[51,] <- c(0.072, NA) # k_pr
+sperling_p[52,] <- c(0.188, NA) # k_pxsh
+sperling_p[53,] <- c(0.17, NA) # k_pxst
+sperling_p[54,] <- c(0.025, NA) # myco.thresh
+
 row.names(sperling_p) <- c("starch0", "sugar0", "starch.needles0", "starch.phloem0", "starch.xylem.sh0", "starch.xylem.st0", "starch.roots0",
                      "sugar.needles0", "sugar.phloem0", "sugar.roots0", "sugar.xylem.sh0", "sugar.xylem.st0",
                      "Wala.needles", "Wala.phloem", "Wala.xylem.sh", "Wala.xylem.st", "Wala.roots",
                      "carbon.sugar", "carbon.starch",
                      "alfa.needles", "alfa.phloem", "alfa.xylem.sh", "alfa.xylem.st", "alfa.roots",
-                     "tau.s", "tau.t", "starch00", "sugar00", "Wala", "alfa")
+                     "tau.s", "tau.t", "starch00", "sugar00", "Wala", "alfa", "Q10s", "Q10d", "SCb", "sugar.level",
+                     "Ad0.needles", "Ad0.phloem", "Ad0.roots", "Ad0.xylem.sh", "Ad0.xylem.st",
+                     "lamda.needles", "lamda.phloem", "lamda.roots", "lamda.xylem.sh", "lamda.xylem.st",
+                     "delta.needles", "delta.phloem", "delta.roots", "delta.xylem.sh", "delta.xylem.st",
+                     "k_np", "k_pr", "k_pxsh", "k_pxst", "myco.thresh")
+
 save(sperling_p, file = paste0(data.direct, "/sperling_p.RData"))
 
 #######
