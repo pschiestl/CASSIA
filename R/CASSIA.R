@@ -28,13 +28,13 @@ CASSIA <- function(
   storage.reset = TRUE,			# storage.reset<-TRUE=Same initial storage each year, storage.reset<-False, The storage on the last day of year X is  postponded to the first day of the year X+1
   storage.grows = FALSE,			# TRUE if the critical storage level increases with tree size.
 
-  LH.estim = TRUE,				# LH depends on the GPP during previous july-august
-
   LN.estim = TRUE,				# LN depends on the GPP during previous july-august
   mN.varies = TRUE,				# needle mass (in maintenance respiration) is 2/3 of the total during period 1.10 - 31.5.
 
   LD.estim = TRUE,				# LD depends on the GPP during March-August
   sD.estim.T.count = FALSE,			# sD depends on the number of days when g in growing window - analogue to needles
+
+  LH.estim = TRUE,
 
   trees_grow = FALSE,				# can be false if mature trees are modelled and not for a very long period
   growth_decreases = FALSE,			# the height and diameter growth (alfa_S and alfaD) decrease during the simulation
@@ -45,6 +45,15 @@ CASSIA <- function(
 
   sperling_model = FALSE,       # Dynamic sugar model using Sperling's enzyme dynamics
   xylogenesis = FALSE,    # TODO: add the new part from the Lettosuo version
+
+  PRELES_GPP = FALSE,
+  environment_effect_xylogenesis = FALSE,
+
+  # TODO: this could be in the wrong place
+  photoparameters = 3,
+  temp_rise = FALSE,
+  drought = FALSE,
+  Rm_acclimation = TRUE,
 
   s.D0 = 79,					# DOY to start the calculation of temperature sum, 1=Jan 1; 69=March 1; 79=March 20 for diameter growth. Valid for Finland
   s.H0 = 1					# and for shoot grwoth
@@ -58,7 +67,8 @@ CASSIA <- function(
   if (sum(names(weather) == c("date", "T", "P", "TSA", "TSB", "MB", "Rain")) != 7) {stop("Incomplete weather data - incorrect variables, or named incorrectly")}
 
   # Check that the sites are within the sites allowed
-  if ((site %in% c("Hyde", "Lettosuo")) == F) {stop("Unknown site: Please pick between Hyde and Lettosuo")}
+  if ((site %in% c("Hyde", "Lettosuo", "Flakaliden_c")) == F) {stop("Unknown site: Please pick between Hyde and Lettosuo")}
+  # TODO: Flakaliden_c is a possible site, but J doesn't have any more information on it - need to check with Pauliina
 
   if (sperling_model == TRUE) {if (mychorrhiza == T) {
     mychorrhiza = FALSE
@@ -66,16 +76,24 @@ CASSIA <- function(
     }
   }
 
-  if (nrow(sperling) != nrow(sperling_p)) {stop("Sperling input is the wrong size!")}
-  if (nrow(parameters) != nrow(parameters_p)) {stop("Parameters input is the wrong size!")}
-  if (nrow(ratios) != nrow(ratios_p)) {stop("Ratios input is the wrong size!")}
-  if (length(common) != length(common_p)) {stop("Common input is the wrong size!")}
-  if (length(repo) != length(repo_p)) {stop("Common input is the wrong size!")}
-  if (rownames(sperling) != names(sperling_p)) {stop("Sperling has the wrong row names")}
-  if (rownames(parameters) != rownames(parameters_p)) {stop("Parameters have the wrong row names")}
-  if (rownames(ratios) != rownames(ratios_p)) {stop("Ratios have the wrong row names")}
-  if (names(common) != names(common_p)) {stop("Ratios have the wrong row names")}
-  if (names(repo) != names(repo_p)) {stop("Ratios have the wrong row names")}
+  if (xylogenesis == TRUE) {
+    # TODO: this is not set in stone, but fits the initial setup of Lettosuo
+    warning("As xylogenesis is TRUE, LN.estim and trees_grow set to FALSE and TRUE respectively")
+    LN.estim = FALSE   # LN depends on the GPP during previous july-august
+    trees_grow = TRUE  # can be false if mature trees are modelled and not for a very long period
+    mycorrhiza = FALSE
+  }
+
+  #if (nrow(sperling) != nrow(sperling_p)) {stop("Sperling input is the wrong size!")}
+  #if (nrow(parameters) != nrow(parameters_p)) {stop("Parameters input is the wrong size!")}
+  #if (nrow(ratios) != nrow(ratios_p)) {stop("Ratios input is the wrong size!")}
+  #if (length(common) != length(common_p)) {stop("Common input is the wrong size!")}
+  #if (length(repo) != length(repo_p)) {stop("Common input is the wrong size!")}
+  #if (rownames(sperling) != names(sperling_p)) {stop("Sperling has the wrong row names")}
+  #if (rownames(parameters) != rownames(parameters_p)) {stop("Parameters have the wrong row names")}
+  #if (rownames(ratios) != rownames(ratios_p)) {stop("Ratios have the wrong row names")}
+  #if (names(common) != names(common_p)) {stop("Ratios have the wrong row names")}
+  #if (names(repo) != names(repo_p)) {stop("Ratios have the wrong row names")}
 
   #####
   ## Model conditions derived from model inputs
@@ -98,17 +116,26 @@ CASSIA <- function(
                               "sugar.needles", "sugar.phloem", "sugar.xylem.sh", "sugar.xylem.st", "sugar.roots",
                               "starch.needles", "starch.phloem", "starch.xylem.sh", "starch.xylem.st", "starch.roots")
     names(export_daily) <- c("date", "year", "day", "bud.tot.growth", "wall.tot.growth", "needle.tot.growth", "root.tot.growth", "height.tot.growth",
-                             "Rg.tot", "Rm.tot", "height.tot", "wall.tot", "storage", "sugar", "starch", "storage", "to.mycorrhiza", "mycorrhiza.tot",
+                             "Rg.tot", "Rm.tot", "height.tot", "wall.tot", "storage", "sugar", "starch", "storage_term", "to.mycorrhiza", "mycorrhiza.tot",
                              "P", "to_sugar", "to_starch", "Daily.H.tot", "Daily.N.tot", "GD.tot",
                              "sugar.needles", "sugar.phloem", "sugar.xylem.sh", "sugar.xylem.st", "sugar.roots",
                              "starch.needles", "starch.phloem", "starch.xylem.sh", "starch.xylem.st", "starch.roots")
+  } else if (xylogenesis == T) {
+    export_yearly <- data.frame(matrix(ncol=20, nrow=length(years)))
+    export_daily <- data.frame(matrix(ncol=27, nrow=length(years)*365))
+    names(export_yearly) <- c("year", "starch", "sugar", "wall.tot", "height.tot", "needle.tot", "root.tot", "tot.Rm", "tot.Rg",
+                              "tot.P", "cumsum.PF", "cum.Daily.H.tot", "cum.Daily.N.tot", "ring_width", "needle_mass", "sum.needle.cohorts",
+                              "ew_width", "ring_density", "ew.cells_tot", "lw.cells_tot")
+    names(export_daily) <- c("date", "year", "day", "bud.tot.growth", "wall.tot.growth", "needle.tot.growth", "root.tot.growth", "height.tot.growth",
+                             "Rg.tot", "Rm.tot", "height.tot", "wall.tot", "storage", "sugar", "starch", "storage", "to.mycorrhiza", "mycorrhiza.tot",
+                             "P", "to_sugar", "to_starch", "daily.consumption", "ring_width", "GD.tot", "n.E.tot", "n.W.tot", "n.M.tot")
   } else {
     export_yearly <- data.frame(matrix(ncol=16, nrow=length(years)))
     export_daily <- data.frame(matrix(ncol=24, nrow=length(years)*365))
     names(export_yearly) <- c("year", "starch", "sugar", "wall.tot", "height.tot", "needle.tot", "root.tot", "tot.Rm", "tot.Rg",
                               "tot.P", "cumsum.PF", "cum.Daily.H.tot", "cum.Daily.N.tot", "tot.mm", "needle_mass", "sum.needle.cohorts")
     names(export_daily) <- c("date", "year", "day", "bud.tot.growth", "wall.tot.growth", "needle.tot.growth", "root.tot.growth", "height.tot.growth",
-                             "Rg.tot", "Rm.tot", "height.tot", "wall.tot", "storage", "sugar", "starch", "storage", "to.mycorrhiza", "mycorrhiza.tot",
+                             "Rg.tot", "Rm.tot", "height.tot", "wall.tot", "storage", "sugar", "starch", "storage_term", "to.mycorrhiza", "mycorrhiza.tot",
                              "P", "to_sugar", "to_starch", "Daily.H.tot", "Daily.N.tot", "GD.tot")
   }
 
@@ -147,6 +174,9 @@ CASSIA <- function(
 
   if (site == "Hyde") {
     stem.no <- cbind(1997 : 2020, rep(1010, length.out = length(1997 : 2020)))	# Photosynthesis calculated with SPP-model for tree class 15-20 cm. Then compared with eddy GPP, determined with which stem no. the portion of eddy GPP is same as SPP estimate.
+  } else if (site == "Lettosuo") {
+    # TODO: change value
+    stem.no <- cbind(1997 : 2020, rep(1010, length.out = length(1997 : 2020)))	# Photosynthesis calculated with SPP-model for tree class 15-20 cm. Then compared with eddy GPP, determined with which stem no. the portion of eddy GPP is same as SPP estimate.
   }
 
   # Carbon to height growth
@@ -157,10 +187,13 @@ CASSIA <- function(
   ## Year loop
   #####
 
+  # TODO: this is not one, just set to test weather the code copied so far has bugs
+  growth_photo_coef = 1
+
   LAI <- needle_mass <- NULL
   count <- 1
 
-  for (year in if (sperling_model == T) years else rep(years, each = 2)) {
+  for (year in if (sperling_model == F) years else rep(years, each = 2)) {
 
     n.days <- if (year %in% leap_years) 366 else 365
 
@@ -176,6 +209,8 @@ CASSIA <- function(
       }
     }
 
+
+    # TODO: should this be under needle growth flase? Not in other code
     needle_cohorts <- matrix(ncol = parameters[c("n_age"), c(site)], nrow = length(years))				# Needle age classes (assumed three classes as in central Finland)
 
     # Needle age classes: oldest fall off, the others age with one year
@@ -204,12 +239,14 @@ CASSIA <- function(
     h00<-parameters[c("h0"), c(site)]
     D00 <- parameters[c("D0"), c(site)]
 
-
     ### Photosynthesis
     # Photosynthesis of one tree per day (g C / m2 --> kg C / tree)
     P <- tot.P <- NULL
 
-    # TODO: where does stem.no come from?
+    if (PRELES_GPP == TRUE) {
+      source(paste(directory,"GPP_preles.R", sep="")) 			## Predicting GPP with PRELES
+    }
+
     P <- PF / stem.no[which(stem.no[,1] == year), 2] * 10000 / 1000
 
     # Total photosynthesis (kg C)
@@ -230,7 +267,9 @@ CASSIA <- function(
 
     LH <- parameters[c("LH0"), c(site)] * height_growth_coefficient[which(height_growth_coefficient[,1] == year), 2]
     if (LH.estim == TRUE) LH <- LH * GPP_previous_sum[which(GPP_previous_sum[,1] == year), 2] / mean(GPP_previous_sum[,2])
-
+    if (xylogenesis == TRUE) { # TODO: does this need to be a condition
+      LH = LH * growth_photo_coef
+    }
 
     # Daily potential length growth (mm/day)  and length (mm)
     GH <- g.sH * fH * LH
@@ -250,7 +289,13 @@ CASSIA <- function(
     fN <- (sN > 0) * (sN < parameters[c("sNc"), c(site)]^2) * (parameters[c("sNc"), c(site)] * sN^(1 / 2) - sN) / (parameters[c("sNc"), c(site)]^2 / 4)	# A function driven by the phase of the annual cycle [0,1] (annual pattern of growth)
     fN[is.na(fN)] <- 0
 
+    LN <- parameters[c("LN0"), c(site)] * rep(n.days, 1) # TODO: correct this
     if (LN.estim==TRUE) LN <- parameters[c("LN0"), c(site)] * GPP_previous_sum[which(GPP_previous_sum[,1] == year), 2] / mean(GPP_previous_sum[,2])
+    if (xylogenesis == TRUE) { # TODO: does this need to be a condition
+      LN = LN * growth_photo_coef # TODO: check this is correct against the original code! Note N and H
+    }
+
+
 
     # Daily potential length growth (mm/day)  and length (mm)  of needles
     GN <- g * fN * LN
@@ -265,7 +310,7 @@ CASSIA <- function(
     if (site == "Hyde") {
       LR <- LR0 <- 2 * rep[[c("m.R.tot")]] / parameters[c("sRc"), c(site)] # root growth rate
     } else {
-      LR <- LR0 / parameters[c("root.lifetime"),c(site)]
+      LR <- LR0 / parameters[c("root.lifetime"),c(site)] * growth_photo_coef # TODO: growth_photo_coef is defined where?
     }
 
     gR <- (Tsb > common[[c("TR0")]]) * (1 / (1 + exp(-common[[c("a")]] * ((Tsb - common[[c("TR0")]]) - common[[c("b")]])))) * (1 - 1 / exp(M.soil * 10)) # Temp and M driving the phase of the annual cycle of root growth
@@ -274,7 +319,7 @@ CASSIA <- function(
 
     fR <- (sR < parameters[c("sRc"), c(site)]) * (sR > 0) * (sin(2 * pi / parameters[c("sRc"), c(site)] * (sR - parameters[c("sRc"), c(site)] / 4)) + 1) / 2	# A function driven by the phase of the annual cycle (annual pattern of growth) [0,1]
 
-    if(root_as_Ding == TRUE) {
+    if (root_as_Ding == TRUE) {
       fib_coef = 0.25    # 0.25, 2.3  # Determines the proportion of fibrous roots (1 leads to 37 % of fibrous roots, 0.25 to 13 % of fibrous roots and 2.3 to 63 % of fibrous roots)
       sR <- cumsum((1 : n.days) >= 150)   # Growth begins earliest in the end of May
       fR <- ifelse(sR == 0, 0, 1/(1+exp(-0.038014*(sR-56.06243))))      # function determines by stage of development [0,1] (parameters from excel file)
@@ -285,25 +330,29 @@ CASSIA <- function(
       gR_pio[gR_pio<0] = 0
       gR <- fib_coef * gR_fib + gR_pio    # if fib_coef = 1 this leads in year 2018 to 37 % fibrous roots of all roots
       LR <- 0.0049 * 1 / (0.37 * fib_coef + 0.63)  # if fib_coef = 1 this leads to (roughly and on average) same total root growth as original. If fib_coef is changed, L is changed accordingly
+    } else if (root_as_Ding == FALSE) { # TODO: check conditions
+      root.pot.growth <- GR								# Carbon to root growth per day (if there?s no carbon limitation) (kg C / day)
+      root.pot.growth[is.na(root.pot.growth)] <- 0
     }
-
-    # Carbon to root growth per day (if there's no carbon limitation) (kg C / day)
-    GR <- fR * LR * gR
 
     root.pot.growth <- GR								# Carbon to root growth per day (if there's no carbon limitation) (kg C / day)
     root.pot.growth[is.na(root.pot.growth)] <- 0
 
+    # Carbon to root growth per day (if there's no carbon limitation) (kg C / day)
+    GR <- fR * LR * gR
+
     ## Diameter growth
     g.sD.T <- g.sD.GPP <- NULL
-    sDA <- sD <- fD <- GD <- tot.cells.pot <- NULL
+    sDA <- sD <- fD <- GD <- tot.cells <- NULL
 
     for (yy in 1:n.days) if(yy<s.D0) g.sD.T[yy] <- 0 else (g.sD.T[yy] <- g[yy])
 
     sD <- parameters[c("sD0.Trad"), c(site)] + cumsum(g.sD.T)						# The phase of the annual cycle of diameter growth, sD:
 
     if (sD.estim.T.count == TRUE){
-      sDA <- sD0.T.count + cumsum(g.sD.T)
+      sDA <- if (xylogenesis == TRUE) sD0.T.count + cumsum(g.sD.T) else sD
       sD <- cumsum(sDA > 0)
+      if (xylogenesis == TRUE) {parameters[c("sDc"), c(site)] <- sDc.T.count}
     }
 
     fD <- (sD > 0) * (sD < parameters[c("sDc"), c(site)]^2) * (parameters[c("sDc"), c(site)] * sD^(1/2) - sD)/(parameters[c("sDc"), c(site)]^2 / 4) 	# A function driven by the phase of the annual cycle (annual pattern of growth) [0,1]
@@ -323,72 +372,234 @@ CASSIA <- function(
       for (yy in (s.D0 + 1) : n.days) LD[yy] <- parameters[c("LD0"), c(site)] * diameter_growth_coefficient[which(height_growth_coefficient[,1] == year), 2] * S.GPP[yy] / S.GPP_ref[yy]
     }
 
+    # The number of forming cell rows in the tree
+    n.rows <- if (xylogenesis == FALSE) {
+      # In the orginal hyde version cell.l was one value,
+      # in the new parameters I have seperated it into lw and ew so the value of this formula is still the same
+      ratios[1,c(site)] * parameters[c("h0"), c(site)] / parameters[c("cell.l.ew"),c(site)] * pi * parameters[c("D0"), c(site)] / parameters[c("cell.d.ew"), c(site)]
+    } else {
+      # The number of forming cell rows in the tree
+      n.rows <- parameters[c("form_factor"),c(site)] * parameters[c("h0"), c(site)] / parameters[c("cell.l.ew"),c(site)] * pi * parameters[c("D0"), c(site)] / parameters[c("cell.d.ew"), c(site)]
+    }
+
     GD <- g.sD.T * fD * LD						# Daily potential number of new cells per day (in one radial cell row), used to be called division
     GD[is.na(GD)] <- 0
     tot.cells.pot <- cumsum(GD)
 
-    ## "Uggla" divides cells to early and late wood
-    tau.W <- (sD < parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * (parameters[c("tau.We"), c(site)]) + (sD >= parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * (parameters[c("tau.Wl"), c(site)])
-    tau.E <- (sD < parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * (parameters[c("tau.Ee"), c(site)]) + (sD >= parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * (parameters[c("tau.El"), c(site)])
+    storage_reduction = 1 # TODO: replace with the actual value, just to make sure there are no bugs
 
-    # Number of cells in enlargement, wall formation and mature phases on each day
-    n.E.pot <- n.W.pot <- n.M.pot <- NULL
-    for (i in 1 : n.days) {
-      n.E.pot[i] <- if (i < 2) 0 else (n.E.pot[i-1] + GD[i] - n.E.pot[i-1] / tau.E[i])
-      n.W.pot[i] <- if (i < 2) 0 else (n.W.pot[i-1] + n.E.pot[i-1] / tau.E[i] - n.W.pot[i-1] / tau.W[i-1])
-      n.M.pot[i] <- if (i < 2) 0 else (n.M.pot[i-1] + n.W.pot[i-1] / tau.W[i-1])
+    if (xylogenesis == TRUE) {
+      GD <- g.sD.T * fD * LD	* storage_reduction					# Daily potential number of new cells per day (in one radial cell row), used to be called division
+      GD[is.na(GD)] <- 0
+      tot.cells <- cumsum(GD)
+
+
+      if (environment_effect_xylogenesis == TRUE) {        # Constant duration of enlargement and wall formation - end size depends on water availability, final wall thickness depends on temperature
+        temperature_effect_on_wall_formation = (g + 1)/1.5
+        cell_volume = cell_wall_volume = carbon_to_enlargement = carbon_release_enlargement = carbon_to_wall_formation = phase = matrix(NA, ncol = floor(max(tot.cells)), nrow = n.days)
+        ew_lw = cell.wall.density = NULL    # ew = 1, lw = 2
+        for (i in 1:floor(max(tot.cells))) {
+          division_day = min(which(tot.cells >= i))
+          cell_volume[division_day,i] = cell_wall_volume[division_day,i] = 0
+          ew_lw[i] = ifelse(sD[division_day] < (parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]), 1, 2)
+          tau.E <- ifelse(sD[division_day] < (parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]), round(parameters[c("tau.Ee"), c(site)], 0), round(parameters[c("tau.El"), c(site)], 0))
+          tau.W <- ifelse(sD[division_day] < (parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]), round(parameters[c("tau.We"), c(site)], 0), round(parameters[c("tau.Wl"), c(site)], 0))
+          cell.wall.density[i] <- ifelse(sD[division_day] < (parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]), cell.wall.density.ew, cell.wall.density.lw)
+          cell.volume.growth.per.day = ifelse(sD[division_day] < (parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]), cell.volume.growth.per.day.ew, cell.volume.growth.per.day.lw)
+          cell.wall.volume.growth.per.day = ifelse(sD[division_day] < (parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]), cell.wall.volume.growth.per.day.ew, cell.wall.volume.growth.per.day.lw)
+          for (d in 1:tau.E) {    # time of enlargement
+            cell_volume[(division_day + d), i] = cell_volume[(division_day + d - 1), i] + cell.volume.growth.per.day * soil_moisture_effect[division_day + d] * storage_reduction[division_day + d]
+            cell_wall_volume[(division_day + d), i] = 0
+            carbon_to_enlargement[(division_day + d), i] = cell.volume.growth.per.day * common[[c("osmotic.sugar.conc")]] * M.suc / (common[[c("gas.const")]] * (Temp[division_day + d] + common[[c("abs_zero")]]) * 1000) * 12 * M.C / M.suc  * storage_reduction[division_day + d]
+          }
+          for (d in (division_day + tau.E + 1) : n.days) {    # time after enlargement
+            cell_volume[d,i] = cell_volume[(division_day + tau.E),i]
+          }
+          for (d in 1:tau.W) {    # time of wall formation
+            cell_wall_volume[(division_day + tau.E + d), i] = cell_wall_volume[(division_day + tau.E + d - 1),i] + cell.wall.volume.growth.per.day * temperature_effect_on_wall_formation[division_day + tau.E + d] * storage_reduction[division_day + tau.E + d]
+            carbon_to_wall_formation[(division_day + tau.E + d), i] = cell.wall.volume.growth.per.day * temperature_effect_on_wall_formation[division_day + tau.E + d] * storage_reduction[division_day + tau.E + d] * cell.wall.density[i]
+          }
+          for (d in (division_day + tau.E + tau.W + 1) : n.days) {    # time after wall formation
+            cell_wall_volume[d, i] = cell_wall_volume[(division_day + tau.E + tau.W),i]
+          }
+          carbon_release_enlargement[division_day + tau.E + tau.W, i] = sum(carbon_to_enlargement[,i], na.rm = TRUE)
+          phase[1:division_day, i] = 0
+          phase[((division_day + 1) : (division_day + tau.E)), i] = 1
+          phase[((division_day + tau.E + 1) : (division_day + tau.E + tau.W)), i] = 2
+          phase[((division_day + tau.E + tau.W + 1) : n.days), i] = 3
+        }
+        cell_volume[is.na(cell_volume)] = cell_wall_volume[is.na(cell_wall_volume)] = carbon_to_enlargement[is.na(carbon_to_enlargement)] =
+          carbon_release_enlargement[is.na(carbon_release_enlargement)] = carbon_to_wall_formation[is.na(carbon_to_wall_formation)] = 0
+        cell_d = sqrt(cell_volume/cell.l)     # matrix ndays * ncells
+        cell_d_final = cell_d[365,]           # for each cell (tot.cells.pot values)
+        ring_width = rowSums(cell_d, na.rm = TRUE) * 1000 # mm, 365 values
+        ew_width = rowSums(cell_d[, which(ew_lw == 1)], na.rm = TRUE) * 1000 # mm, 365 values
+        lw_width = rowSums(cell_d[, which(ew_lw == 2)], na.rm = TRUE) * 1000 # mm, 365 values
+        ew_cells = sum(ew_lw==1)
+        lw_cells = sum(ew_lw==2)
+        cell_wall_thickness = cell_wall_volume[365,]/(2 * cell_d[365,]*(2 * cell.l + cell_d[365,])) # for each cell (tot.cells.pot values)
+        cell_density = cell_wall_volume[365,] * cell.wall.density / cell_volume[365,]        # for each cell (tot.cells.pot values)
+        ring_density = sum(cell_wall_volume[365,] * cell.wall.density) / sum(cell_volume[365,])      # single value
+
+        carbon_to_wall_cellrow = rowSums(carbon_to_wall_formation) # kg C day-1
+        carbon_to_enlargement_cellrow = rowSums(carbon_to_enlargement)  # kg C day-1
+        enlargement_release_cellrow = rowSums(carbon_release_enlargement)  # kg C day-1
+
+        n.E = rowSums(phase == 1)
+        n.W = rowSums(phase == 2)
+        n.M = rowSums(phase == 3)
+
+        # Carbon to enlargement per day (kg C /day) (in the whole tree)
+        en.growth <- n.rows * carbon_to_enlargement_cellrow
+        en.release <- n.rows * enlargement_release_cellrow
+
+        # The use of carbon to wall growth kg C per day
+        wall.growth <- n.rows * carbon_to_wall_cellrow
+
+        # Total use of carbon to wall growth so far kg C
+        wall.tot <- cumsum(wall.growth)
+
+      }
+
+      if (environment_effect_xylogenesis == FALSE) {
+        ## "Uggla" divides cells to early and late wood
+        tau.E <- (sD < parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * (parameters[c("tau.Ee"), c(site)]) + (sD >= parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * (parameters[c("tau.El"), c(site)])       # Duration of cell enlargement of earlywood cells and late wood cells
+        tau.W <- (sD < parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * (parameters[c("tau.We"), c(site)]) + (sD >= parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * (parameters[c("tau.Wl"), c(site)])       # Duration of cell wall formation of earlywood cells and late wood cells
+
+        # Number of cells in enlargement, wall formation and mature phases on each day
+        n.E <- n.W <- n.M <- NULL
+        for (i in 1 : n.days) {
+          n.E[i] <- if (i < 2) 0 else (n.E[i-1] + GD[i] - n.E[i-1] / tau.E[i])
+          n.W[i] <- if (i < 2) 0 else (n.W[i-1] + n.E[i-1] / tau.E[i] - n.W[i-1] / tau.W[i-1])
+          n.M[i] <- if (i < 2) 0 else (n.M[i-1] + n.W[i-1] / tau.W[i-1])
+        }
+        # n.E<-round(n.E, digits=0)
+        # n.W<-round(n.W, digits=0)
+        # n.M<-round(cumsum(GD) - n.W - n.E, digits=0)
+
+        # carbon to enlargement of one earlywood/latewood cell per one day and cell (kg C cell-1 day-1)
+        CE.ew <- CE.lw <- NULL
+        for (i in 1 : n.days){
+          CE.ew[i] <- common[[c("osmotic.sugar.conc")]] * pi * (cell.d.ew / 2)^2 * (cell.l) * M.suc / (common[[c("gas.const")]] * (Temp[i] + common[[c("abs_zero")]]) * 1000) * 12 * M.C / M.suc / tau.E[i]
+          CE.lw[i] <- common[[c("osmotic.sugar.conc")]] * pi * (cell.d.lw / 2)^2 * (cell.l) * M.suc / (common[[c("gas.const")]] * (Temp[i] + common[[c("abs_zero")]]) * 1000) * 12 * M.C / M.suc / tau.E[i]
+        }
+
+        carbon.enlargement <- carbon.wall <- en.growth <- en.release <- wall.growth <- d.growth <- NULL
+        # The carbon needed to enlarge the cells  (kg C /day) (in one radial cell row)
+        carbon.enlargement <- (sD < parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * CE.ew * n.E + (sD >= parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * CE.lw * n.E
+        # Carbon to enlargement per day (kg C /day) (in the whole tree)
+        en.growth <- n.rows * carbon.enlargement
+
+        for(i in 1:round(parameters[c("tau.Ee"), c(site)])) en.release[i] <- 0	# the carbon used in enlargement is released after some days.
+        for(i in (round(parameters[c("tau.Ee"), c(site)]) + 1) : n.days) en.release[i] <- en.growth[i-round(parameters[c("tau.Ee"), c(site)])]
+
+        # Carbon to wall formation
+        # Carbon.daily.rate determined in parameters_common.R but NOTE!!!! not used at the moment, replaced by a parameter set to result in density app. 200 kg C m-3!
+        CW <- (sD < parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * Carbon.daily.rate.ew + (sD >= parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * Carbon.daily.rate.lw
+        CW <- rep(2.9 * 10^-11, length.out = n.days)
+
+        # The use of carbon to wall growth kg C per day
+        wall.growth <- n.rows * CW * n.W
+
+        en.growth[is.na(en.growth)] <- 0
+        en.release[is.na(en.release)] <- 0
+        wall.growth[is.na(wall.growth)] <- 0
+
+        # Total use of carbon to wall growth so far kg C
+        wall.tot <- cumsum(wall.growth)
+
+        ew_cells <- (sD < parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * tot.cells
+        ew_cells[sD > parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]] = max(ew_cells)
+        lw_cells <- tot.cells - ew_cells
+
+        # Calculation of the daily annual ring width, starting from 16.12.2013.
+        # Note! This does not include the size of enlarging cells, only wall forming and mature
+        diameter_cells = n.M + n.W
+        diameter_ew_cells = ifelse(diameter_cells <= ew_cells, diameter_cells, max(ew_cells))
+        diameter_lw_cells = diameter_cells - diameter_ew_cells
+        ew_width <- diameter_ew_cells * cell.d.ew * 1000 #+ ifelse(sD < sDc^2 / Uggla, n.E * cell.d.ew / 2)
+        lw_width <- diameter_lw_cells * cell.d.lw * 1000 #+ ifelse(sD >= sDc^2 / Uggla, n.E * cell.d.lw / 2)
+        ring_width = ew_width + lw_width
+        cell_wall_thickness = c(rep(wall.thickness.ew, round(ew_cells[365],0)), rep(wall.thickness.lw, round(lw_cells[365], 0)))
+        cell_d_final = c(rep(cell.d.ew, round(ew_cells[365],0)), rep(cell.d.lw, round(lw_cells[365], 0)))
+        cell_density = c(rep(cell.density.ew, round(ew_cells[365],0)), rep(cell.density.lw, round(lw_cells[365], 0)))
+        ring_density = cumsum(CW * n.W)[365] / (ew_cells[365] * cell.d.ew^2 * parameters[c("cell.l.ew"),c(site)] + lw_cells[365] * cell.d.lw^2 * cell.l.lw)
+
+        ew_cells = max(ew_cells)
+        lw_cells = max (lw_cells)
+      }
+
+      print(list("GD" = GD, "tot.cells" = tot.cells, "n.E" = n.E, "n.W" = n.W, "n.M" = n.M, "ew_cells" = ew_cells, "lw_cells" = lw_cells,
+                 "ring_width" = ring_width, "ew_width" = ew_width, "lw_width" = lw_width, "en.growth" = en.growth,
+                 "en.release" = en.release, "wall.growth" = wall.growth, "wall.tot" = wall.tot, "cell_d_final" = cell_d_final,
+                 "cell_wall_thickness" = cell_wall_thickness, "cell_density" = cell_density, "ring_density" = ring_density))
+
+      list_xylogenesis = list("GD" = GD, "tot.cells" = tot.cells, "n.E" = n.E, "n.W" = n.W, "n.M" = n.M, "ew_cells" = ew_cells, "lw_cells" = lw_cells,
+                              "ring_width" = ring_width, "ew_width" = ew_width, "lw_width" = lw_width, "en.growth" = en.growth,
+                              "en.release" = en.release, "wall.growth" = wall.growth, "wall.tot" = wall.tot, "cell_d_final" = cell_d_final,
+                              "cell_wall_thickness" = cell_wall_thickness, "cell_density" = cell_density, "ring_density" = ring_density)
+
+
+      en.pot.growth = list_xylogenesis$en.growth
+      en.pot.release = list_xylogenesis$en.release
+      wall.pot.growth = list_xylogenesis$wall.growth
+    } else {
+      ## "Uggla" divides cells to early and late wood
+      tau.W <- (sD < parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * (parameters[c("tau.We"), c(site)]) + (sD >= parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * (parameters[c("tau.Wl"), c(site)])
+      tau.E <- (sD < parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * (parameters[c("tau.Ee"), c(site)]) + (sD >= parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * (parameters[c("tau.El"), c(site)])
+
+      # Number of cells in enlargement, wall formation and mature phases on each day
+      n.E.pot <- n.W.pot <- n.M.pot <- NULL
+      for (i in 1 : n.days) {
+        n.E.pot[i] <- if (i < 2) 0 else (n.E.pot[i-1] + GD[i] - n.E.pot[i-1] / tau.E[i])
+        n.W.pot[i] <- if (i < 2) 0 else (n.W.pot[i-1] + n.E.pot[i-1] / tau.E[i] - n.W.pot[i-1] / tau.W[i-1])
+        n.M.pot[i] <- if (i < 2) 0 else (n.M.pot[i-1] + n.W.pot[i-1] / tau.W[i-1])
+      }
+
+      # carbon to enlargement of one earlywood/latewood cell per one day and cell (kg C cell-1 day-1)
+      CE.ew <- CE.lw <- NULL
+      for (i in 1 : n.days){
+        CE.ew[i] <- common[[c("osmotic.sugar.conc")]] * pi * (parameters[c("cell.d.ew"), c(site)] / 2)^2 * (parameters[c("cell.l.ew"), c(site)]) * M.suc / (common[[c("gas.const")]] * (Temp[i] + common[[c("abs_zero")]]) * 1000) * 12 * common[[c("M.C")]] / M.suc / tau.E[i]
+        CE.lw[i] <- common[[c("osmotic.sugar.conc")]] * pi * (parameters[c("cell.d.lw"), c(site)] / 2)^2 * (parameters[c("cell.l.lw"), c(site)]) * M.suc / (common[[c("gas.const")]] * (Temp[i] + common[[c("abs_zero")]]) * 1000) * 12 * common[[c("M.C")]] / M.suc / tau.E[i]
+      }
+      CE.ew <- unlist(CE.ew)
+      CE.lw <- unlist(CE.lw)
+
+      carbon.enlargement.pot <- carbon.wall.pot <- en.pot.growth <- en.pot.release <- wall.pot.growth <- d.pot.growth <- NULL
+      # The carbon needed to enlarge the cells  (kg C /day) (in one radial cell row)
+      carbon.enlargement.pot <- (sD < parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * CE.ew * n.E.pot + (sD >= parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * CE.lw * n.E.pot
+      # Carbon to enlargement and wall forming per day (kg C /day) (in the whole tree)
+      en.pot.growth <- n.rows * carbon.enlargement.pot
+
+      for(i in 1:round(parameters[c("tau.Ee"), c(site)])) en.pot.release[i] <- 0	# the carbon used in enlargement is released after some days.
+      for(i in (round(parameters[c("tau.Ee"), c(site)]) + 1) : n.days) en.pot.release[i] <- en.pot.growth[i-round(parameters[c("tau.Ee"), c(site)])]
+
+      # Carbon to wall formation
+      # Carbon.daily.rate determined in parameters_common.R but NOTE!!!! not used at the moment, replaced by a parameter set to result in density app. 200 kg C m-3!
+      # TODO: which CW
+      CW <- (sD < parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * Carbon.daily.rate.ew + (sD >= parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * Carbon.daily.rate.lw
+      CW <- rep(1.8 * 10^-11, length.out = n.days)
+
+      # The use of carbon to wall growth kg C per day
+      wall.pot.growth <- n.rows * CW * n.W.pot
+
+      en.pot.growth[is.na(en.pot.growth)] <- 0
+      en.pot.release[is.na(en.pot.release)] <- 0
+      wall.pot.growth[is.na(wall.pot.growth)] <- 0
+
+      # Total use of carbon to wall growth so far kg C
+      wall.pot <- cumsum(wall.pot.growth)
+
+      # Calculation of the daily annual ring width, starting from 16.12.2013.
+      # Note! This does not include the size of enlarging cells, only wall forming and mature
+      cells_pot <- ew.cells_pot <- lw.cells_pot <- ew.width_pot <- lw.width_pot <- pot.mm <- NULL
+      cells_pot <- (n.W.pot + n.M.pot)
+      ew.cells_pot <- ((sD < parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * cells_pot)
+      for (i in 1 : n.days) if (sD[i] > parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) lw.cells_pot[i] <- cells_pot[i] - ew.cells_pot[i] - max(ew.cells_pot) else lw.cells_pot[i] <- 0
+      ew.width_pot <- ew.cells_pot * parameters[c("cell.d.ew"), c(site)] * 1000
+      lw.width_pot <- lw.cells_pot * parameters[c("cell.d.lw"), c(site)] * 1000
+      for (i in 1:n.days) if (sD[i] < parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) pot.mm[i] <- ew.width_pot[i] else pot.mm[i] <- lw.width_pot[i] + max(ew.width_pot)
     }
-
-    # n.E.pot<-round(n.E.pot, digits=0)
-    # n.W.pot<-round(n.W.pot, digits=0)
-    # n.M.pot<-round(cumsum(GD) - n.W.pot - n.E.pot, digits=0)
-
-    # carbon to enlargement of one earlywood/latewood cell per one day and cell (kg C cell-1 day-1)
-    CE.ew <- CE.lw <- NULL
-    for (i in 1 : n.days){
-      CE.ew[i] <- common[[c("osmotic.sugar.conc")]] * pi * (parameters[c("cell.d.ew"), c(site)] / 2)^2 * (parameters[c("cell.l.ew"), c(site)]) * M.suc / (common[[c("gas.const")]] * (Temp[i] + common[[c("abs_zero")]]) * 1000) * 12 * common[[c("M.C")]] / M.suc / tau.E[i]
-      CE.lw[i] <- common[[c("osmotic.sugar.conc")]] * pi * (parameters[c("cell.d.lw"), c(site)] / 2)^2 * (parameters[c("cell.l.lw"), c(site)]) * M.suc / (common[[c("gas.const")]] * (Temp[i] + common[[c("abs_zero")]]) * 1000) * 12 * common[[c("M.C")]] / M.suc / tau.E[i]
-    }
-    CE.ew <- unlist(CE.ew)
-    CE.lw <- unlist(CE.lw)
-    # The number of forming cell rows in the tree
-    # TODO: in the orginal hyde version cell.l was one value, in the new parameters I have seperated it into lw and ew so the value of this formula is still the same, but it should be
-    # combined with the Lettosuo growth method in a more sensible way
-    n.rows <- ratios[1,c(site)] * parameters[c("h0"), c(site)] / parameters[c("cell.l.ew"),c(site)] * pi * parameters[c("D0"), c(site)] / parameters[c("cell.d.ew"), c(site)]
-
-    carbon.enlargement.pot <- carbon.wall.pot <- en.pot.growth <- en.pot.release <- wall.pot.growth <- d.pot.growth <- NULL
-    # The carbon needed to enlarge the cells  (kg C /day) (in one radial cell row)
-    carbon.enlargement.pot <- (sD < parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * CE.ew * n.E.pot + (sD >= parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * CE.lw * n.E.pot
-    # Carbon to enlargement and wall forming per day (kg C /day) (in the whole tree)
-    en.pot.growth <- n.rows * carbon.enlargement.pot
-
-    for(i in 1:round(parameters[c("tau.Ee"), c(site)])) en.pot.release[i] <- 0	# the carbon used in enlargement is released after some days.
-    for(i in (round(parameters[c("tau.Ee"), c(site)]) + 1) : n.days) en.pot.release[i] <- en.pot.growth[i-round(parameters[c("tau.Ee"), c(site)])]
-
-    # Carbon to wall formation
-    # Carbon.daily.rate determined in parameters_common.R but NOTE!!!! not used at the moment, replaced by a parameter set to result in density app. 200 kg C m-3!
-    CW <- (sD < parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * Carbon.daily.rate.ew + (sD >= parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * Carbon.daily.rate.lw
-    CW <- rep(1.8 * 10^-11, length.out = n.days)
-
-    # The use of carbon to wall growth kg C per day
-    wall.pot.growth <- n.rows * CW * n.W.pot
-
-    en.pot.growth[is.na(en.pot.growth)] <- 0
-    en.pot.release[is.na(en.pot.release)] <- 0
-    wall.pot.growth[is.na(wall.pot.growth)] <- 0
-
-    # Total use of carbon to wall growth so far kg C
-    wall.pot <- cumsum(wall.pot.growth)
-
-    # Calculation of the daily annual ring width, starting from 16.12.2013.
-    # Note! This does not include the size of enlarging cells, only wall forming and mature
-    cells_pot <- ew.cells_pot <- lw.cells_pot <- ew.width_pot <- lw.width_pot <- pot.mm <- NULL
-    cells_pot <- (n.W.pot + n.M.pot)
-    ew.cells_pot <- ((sD < parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * cells_pot)
-    for (i in 1 : n.days) if (sD[i] > parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) lw.cells_pot[i] <- cells_pot[i] - ew.cells_pot[i] - max(ew.cells_pot) else lw.cells_pot[i] <- 0
-    ew.width_pot <- ew.cells_pot * parameters[c("cell.d.ew"), c(site)] * 1000
-    lw.width_pot <- lw.cells_pot * parameters[c("cell.d.lw"), c(site)] * 1000
-    for (i in 1:n.days) if (sD[i] < parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) pot.mm[i] <- ew.width_pot[i] else pot.mm[i] <- lw.width_pot[i] + max(ew.width_pot)
 
     ## New bud growth
 
@@ -396,7 +607,12 @@ CASSIA <- function(
 
     # Factor driving the phase of the annual cycle of buds (no. of days after needle growth onset).
     day.no <- 1 : n.days
+
+    # TODO: which sB
+
     sB <- cumsum(day.no>parameters[c("sB0"), c(site)])								# The phase of the annual cycle of bud growth
+    # xylogenesis version below
+    sB <- cumsum(day.no>sB0)								# The phase of the annual cycle of bud growth
 
     fB <- (sB < parameters[c("sBc"), c(site)]) * (sin(2 * pi / parameters[c("sBc"), c(site)] * (sB - parameters[c("sBc"), c(site)] / 4)) + 1) / 2		# A function driven by the phase of the annual cycle (annual pattern of growth) [0,1]
 
@@ -410,16 +626,22 @@ CASSIA <- function(
     Ra.share <- -0.0007 * Tsa^2 + 0.0424 * Tsa + 0.0273					# share of autotrophic soil respiration
     Ra.share[Ra.share<0] = 0
 
-    RmS.a <- parameters[c("Rm.S"),c(site)] * (exp(log(parameters[c("Q10.S"),c(site)]) / 10 * (Temp)) - 0.7) * m.S.tot * ratios[c("Q10.S"),c(site)]			# Maintenance respiration of wood
-    RmR.a <- parameters[c("Rm.R"),c(site)] * (exp(log(parameters[c("Q10.R"),c(site)]) / 10 * (Tsa)) - exp(-log(parameters[c("Q10.R"),c(site)]) / 2)) * rep[[c("m.R.tot")]] * Ra.share	# Maintenance respiration of roots
-    RmN.a <- parameters[c("Rm.N"),c(site)] * (exp(log(parameters[c("Q10.N"),c(site)]) / 10 * (Temp)) - 0.7) * rep[[c("m.N.tot")]]						# Maintenance respiration of needles
+    Rm_accl = 1
+    if (temp_rise == TRUE & Rm_acclimation == TRUE) {
+      Rm_accl = 0.85
+    }
+
+    # TODO: check original formulas with RmS.a currently matches Lettosuo parameters
+    RmS.a <- parameters[c("Rm.S"),c(site)] * (exp(log(parameters[c("Q10.S"),c(site)]) / 10 * (Temp)) - 0.7) * m.S.tot * ratios[c("sapwood.share"),c(site)] * Rm_accl # Maintenance respiration of wood
+    RmR.a <- parameters[c("Rm.R"),c(site)] * (exp(log(parameters[c("Q10.R"),c(site)]) / 10 * (Tsa)) - exp(-log(parameters[c("Q10.R"),c(site)]) / 2)) * rep[[c("m.R.tot")]] * Ra.share * RC_accl	# Maintenance respiration of roots
+    RmN.a <- parameters[c("Rm.N"),c(site)] * (exp(log(parameters[c("Q10.N"),c(site)]) / 10 * (Temp)) - 0.7) * rep[[c("m.N.tot")]] * Rm_accl						# Maintenance respiration of needles
 
     if (mN.varies == TRUE){
       m.N.tot2 = NULL
       for(yy in 1 : n.days) {
         m.N.tot2[yy] = if(yy > 150 & yy < 285) rep[[c("m.N.tot")]] else rep[[c("m.N.tot")]] * 2/3
       }
-      RmN.a <- parameters[c("Rm.N"),c(site)] * (exp(log(parameters[c("Q10.N"),c(site)]) / 10 * (Temp)) - 0.7) * m.N.tot2
+      RmN.a <- parameters[c("Rm.N"),c(site)] * (exp(log(parameters[c("Q10.N"),c(site)]) / 10 * (Temp)) - 0.7) * m.N.tot2 * Rm_accl
     }
 
     RmN <- (RmN.a > 0) * RmN.a
@@ -732,17 +954,23 @@ CASSIA <- function(
 
     ########### Total growth and carbon consumption
     #  Occurred growth kg C day-1 (potential growth * storage effect)
+    # TODO: should this be in vector form or for loop?
     for(i in 1 : n.days) {
       root.tot.growth[i] <- if (sperling_model == FALSE) storage_term[i] * root.pot.growth[i] else {storage_term_roots[i] * root.pot.growth[i]}
       height.tot.growth[i] <- if (sperling_model == FALSE) storage_term[i] * height.pot.growth[i] else height.pot.growth[i] * (0.082179938 * storage_term_phloem[i] + 0.821799379 * storage_term_xylem.st + 0.096020683 * storage_term_xylem.sh)
       needle.tot.growth[i] <- if (sperling_model == FALSE) storage_term[i] * needle.pot.growth[i] else storage_term_needles[i] * needle.pot.growth[i]
-      wall.tot.growth[i] <- if (sperling_model == FALSE) storage_term[i] * wall.pot.growth[i] else wall.pot.growth[i] * (0.082179938 * storage_term_phloem[i] + 0.821799379 * storage_term_xylem.st + 0.096020683 * storage_term_xylem.sh)
+      wall.tot.growth[i] <- if (sperling_model == FALSE & xylogenesis == FALSE) {storage_term[i] * wall.pot.growth[i]}
+      else if (sperling_model == FALSE & xylogenesis == TRUE) {tot_xylogenesis$wall.growth[i]}
+      else {wall.pot.growth[i] * (0.082179938 * storage_term_phloem[i] + 0.821799379 * storage_term_xylem.st + 0.096020683 * storage_term_xylem.sh)}
       bud.tot.growth[i] <- if (sperling_model == FALSE) storage_term[i] * bud.pot.growth[i] else storage_term_needles[i] * bud.pot.growth[i]
       # These shouldn't be for intervdal
-      GD.tot[i] <- if (sperling_model == FALSE) storage_term[i] * GD[i] else NA
+      GD.tot[i] <- if (sperling_model == FALSE & xylogenesis == FALSE) {storage_term[i] * GD[i]}
+      else if (sperling_model == FALSE & xylogenesis == TRUE) {tot_xylogenesis$GD}
+      else {NA}
       Rm.tot[i] <- if (sperling_model == FALSE) storage_term_Rm[i] * Rm.a[i] else storage_term_roots[i] * RmR[i] + storage_term_needles[i] * RmN[i] + 0.082179938 * storage_term_phloem[i] * RmS[i] + 0.821799379 * storage_term_xylem.st[i] * RmS[i] + 0.096020683 * storage_term_xylem.sh[i] * RmS[i]
       RmR.tot[i] <- if (sperling_model == FALSE) storage_term_Rm[i] * Rm.a[i] else storage_term_roots[i] * RmR[i]
     }
+    if (xylogenesis == TRUE) {tot_xylogenesis = model_xylogenesis(storage_term)}
 
     # Total occurred growth so far kg C
 
@@ -758,33 +986,50 @@ CASSIA <- function(
     Daily.N.tot <- needle.tot.growth / (rep[[c("m.N")]] * max(cum.Daily.H.tot) / parameters[c("h_increment"), c(site)])		# mm day-1
     cum.Daily.N.tot <- parameters[c("HN0"), c(site)] + cumsum(Daily.N.tot)							# mm
 
-    # Secondary cells and ring width
-    GD.tot[is.na(GD.tot)] <- 0
-    tot.cells.tot <- cumsum(GD.tot)							# cells in new ring
+    if (xylogenesis == FALSE) {
 
-    n.E.tot <- n.W.tot <- n.M.tot <- NULL 		# Number of cells in phases on each day
-    for(i in 1 : n.days) n.E.tot[i] <- if(i < 2) 0 else (n.E.tot[i-1] + GD.tot[i] - n.E.tot[i-1] / tau.E[i])
-    for(i in 1 : n.days) n.W.tot[i] <- if(i < 2) 0 else (n.W.tot[i-1] + n.E.tot[i-1] / tau.E[i] - n.W.tot[i-1] / tau.W[i-1])
-    for(i in 1 : n.days) n.M.tot[i] <- if(i < 2) 0 else (n.M.tot[i-1] + n.W.tot[i-1] / tau.W[i-1])
+      # Secondary cells and ring width
+      GD.tot[is.na(GD.tot)] <- 0
+      tot.cells.tot <- cumsum(GD.tot)							# cells in new ring
 
-    CW_new <- daily_carbon_to_walls <- NULL
-    for(i in 1 : n.days) if (n.W.tot[i] < common[[c("ypsilon")]]) daily_carbon_to_walls[i] <- 0 else daily_carbon_to_walls[i] <- wall.tot.growth[i] / (n.W.tot[i] * n.rows)
-    for(i in 1 : n.days) CW_new[i] <- if (daily_carbon_to_walls[i] < CW[i]) daily_carbon_to_walls[i] else CW_new[i] <- CW[i]
+      n.E.tot <- n.W.tot <- n.M.tot <- NULL 		# Number of cells in phases on each day
+      for(i in 1 : n.days) n.E.tot[i] <- if(i < 2) 0 else (n.E.tot[i-1] + GD.tot[i] - n.E.tot[i-1] / tau.E[i])
+      for(i in 1 : n.days) n.W.tot[i] <- if(i < 2) 0 else (n.W.tot[i-1] + n.E.tot[i-1] / tau.E[i] - n.W.tot[i-1] / tau.W[i-1])
+      for(i in 1 : n.days) n.M.tot[i] <- if(i < 2) 0 else (n.M.tot[i-1] + n.W.tot[i-1] / tau.W[i-1])
 
-    cells_tot <- ew.cells_tot <- lw.cells_tot <- ew.width_tot <- lw.width_tot <- tot.mm <- NULL
-    cells_tot <- (n.W.tot + n.M.tot)
-    ew.cells_tot <- ((sD < parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * cells_tot)
-    for (i in 1 : n.days) if (sD[i] > parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) lw.cells_tot[i] <- cells_tot[i] - ew.cells_tot[i] - max(ew.cells_tot) else lw.cells_tot[i] <- 0
-    ew.width_tot <- ew.cells_tot * parameters[c("cell.d.ew"), c(site)] * 1000
-    lw.width_tot <- lw.cells_tot * parameters[c("cell.d.lw"), c(site)] * 1000
-    for (i in 1 : n.days) if (sD[i] < parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) tot.mm[i] <- ew.width_tot[i] else tot.mm[i] <- lw.width_tot[i] + max(ew.width_tot)
+      CW_new <- daily_carbon_to_walls <- NULL
+      for(i in 1 : n.days) if (n.W.tot[i] < common[[c("ypsilon")]]) daily_carbon_to_walls[i] <- 0 else daily_carbon_to_walls[i] <- wall.tot.growth[i] / (n.W.tot[i] * n.rows)
+      for(i in 1 : n.days) CW_new[i] <- if (daily_carbon_to_walls[i] < CW[i]) daily_carbon_to_walls[i] else CW_new[i] <- CW[i]
 
-    # wood_density_model<-max(ew.width_tot)/tot.mm[n.days]*cell.density.ew+lw.width_tot[n.days]/tot.mm[n.days]*cell.density.lw	# not used
-    wood_density.CW <- wall.tot[365] / (ratios[1,c(site)] * parameters[c("h0"), c(site)] * pi * ((parameters[c("D0"), c(site)] / 2 + tot.mm[n.days] / 1000)^2 - (parameters[c("D0"), c(site)] / 2)^2))
-    #print(paste(year, "Proportion of earlywood:", round(max(ew.width_tot) / max(tot.mm), digits=2)," wood density:", round(wood_density.CW)," ring width:", round(tot.mm[n.days], digits=2)))
+      cells_tot <- ew.cells_tot <- lw.cells_tot <- ew.width_tot <- lw.width_tot <- tot.mm <- NULL
+      cells_tot <- (n.W.tot + n.M.tot)
+      ew.cells_tot <- ((sD < parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * cells_tot)
+      for (i in 1 : n.days) if (sD[i] > parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) lw.cells_tot[i] <- cells_tot[i] - ew.cells_tot[i] - max(ew.cells_tot) else lw.cells_tot[i] <- 0
+      ew.width_tot <- ew.cells_tot * parameters[c("cell.d.ew"), c(site)] * 1000
+      lw.width_tot <- lw.cells_tot * parameters[c("cell.d.lw"), c(site)] * 1000
+      for (i in 1 : n.days) if (sD[i] < parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) tot.mm[i] <- ew.width_tot[i] else tot.mm[i] <- lw.width_tot[i] + max(ew.width_tot)
+
+      # wood_density_model<-max(ew.width_tot)/tot.mm[n.days]*cell.density.ew+lw.width_tot[n.days]/tot.mm[n.days]*cell.density.lw	# not used
+      wood_density.CW <- wall.tot[365] / (ratios[1,c(site)] * parameters[c("h0"), c(site)] * pi * ((parameters[c("D0"), c(site)] / 2 + tot.mm[n.days] / 1000)^2 - (parameters[c("D0"), c(site)] / 2)^2))
+      #print(paste(year, "Proportion of earlywood:", round(max(ew.width_tot) / max(tot.mm), digits=2)," wood density:", round(wood_density.CW)," ring width:", round(tot.mm[n.days], digits=2)))
+
+    } else if (xylogenesis == TRUE) {
+
+      tot.cells.tot <- cumsum(GD.tot)							# cells in new ring
+      n.E.tot = tot_xylogenesis$n.E
+      n.W.tot = tot_xylogenesis$n.W
+      n.M.tot = tot_xylogenesis$n.M
+      ew.cells_tot = tot_xylogenesis$ew_cells
+      lw.cells_tot = tot_xylogenesis$lw_cells
+      ring_width = tot_xylogenesis$ring_width
+      ew_width = tot_xylogenesis$ew_width
+      lw_width = tot_xylogenesis$lw_width
+      ring_density = tot_xylogenesis$ring_density
+
+    }
 
     # Carbon to mychorrhiza
-    if (sperling_model == F) {
+    if (sperling_model == FALSE) {
       to.mycorrhiza = (Tsb > 10) * (storage > optimal.level.myco) * P * parameters[c("growth.myco"),c(site)]
       mycorrhiza.tot = cumsum(to.mycorrhiza)
     } else {
@@ -794,10 +1039,11 @@ CASSIA <- function(
 
     # Carbon used for respiration
     Rg.tot <- tot.Rm <- tot.Rg <- NULL
+    # TODO: there is no bud in xylo version why is this?
     Rg.tot <- common[[c("Rg.N")]] * needle.tot.growth + common[[c("Rg.N")]] * bud.tot.growth + common[[c("Rg.R")]] * root.tot.growth + common[[c("Rg.S")]] * height.tot.growth + common[[c("Rg.S")]] * wall.tot.growth
     Rg.root <- common[[c("Rg.R")]] * root.tot.growth
     # NOTE! These are the same for sperling and non-sperling as this is the sum of possible Rm and Rg not what actually happened
-    tot.Rm <- Rm.tot
+    tot.Rm <- cumsum(Rm.tot)
     tot.Rg <- cumsum(Rg.tot)
 
     if (sperling_model == FALSE) {
@@ -839,8 +1085,9 @@ CASSIA <- function(
       tot.growth <- cumsum(daily.tot.growth)[365]											# Total growth so far + formation of buds
       tot.consumption <- tot.growth + tot.Rm[365] + tot.Rg[365]
       tot.resp <- tot.Rm + tot.Rg		 								# Total carbon used so far to growth and respiration
-    }
-      # Measurements and output
+    } # TODO: sperling verison
+
+    # Measurements and output
     for (i in 1 : 365) {
       export_daily[i + n.days.export, 1] <- NA
       export_daily[i + n.days.export, 2] <- year
@@ -862,9 +1109,13 @@ CASSIA <- function(
       export_daily[i + n.days.export, 18] <- if (sperling_model == FALSE) mycorrhiza.tot[i] else NA
       export_daily[i + n.days.export, 19] <- P[i]
       export_daily[i + n.days.export, 20] <- if (sperling_model == FALSE) to_sugar[i] else NA
-      export_daily[i + n.days.export, 21] <- if (sperling_model == FALSE) to_starch[i] else NA
-      export_daily[i + n.days.export, 22] <- Daily.H.tot[i]
-      export_daily[i + n.days.export, 23] <- Daily.N.tot[i]
+      if (xylogenesis == TRUE) {
+        export_daily[i + n.days.export, 22] <- daily.consumption[i]
+        export_daily[i + n.days.export, 23] <- ring_width[i]
+      } else {
+        export_daily[i + n.days.export, 22] <- Daily.H.tot[i]
+        export_daily[i + n.days.export, 23] <- Daily.N.tot[i]
+      }
       export_daily[i + n.days.export, 24] <- GD.tot[i]
       if (sperling_model == T) {
         export_daily[i + n.days.export, 25] <- sugar.needles[i]
@@ -879,6 +1130,14 @@ CASSIA <- function(
         export_daily[i + n.days.export, 34] <- starch.roots[i]
         }
       }
+      if (xylogenesis == TRUE) {
+        export_daily[i + n.days.export, 25] <- n.E.tot[i]
+        export_daily[i + n.days.export, 26] <- n.W.tot[i]
+        export_daily[i + n.days.export, 27] <- n.M.tot[i]
+      }
+    export_daily[, 1] <- seq(as.POSIXct(as.character(paste(years[1], "0101")), format = "%Y%m%d"), as.POSIXct(as.character(paste(years[n.year], "1231")), format = "%Y%m%d"), by = "day")
+    export_daily[, 1] <- format(export_daily[, 1], "%Y-%m-%d")
+
 
     n.days.export <- n.days.export + 365
 
@@ -911,8 +1170,13 @@ CASSIA <- function(
       export_yearly[n.year, 25] <- starch.xylem.st[365]
       export_yearly[n.year, 26] <- starch.roots[365]
     }
-    export_daily[, 1] <- seq(as.POSIXct(as.character(paste(years[1], "0101")), format = "%Y%m%d"), as.POSIXct(as.character(paste(years[n.year], "1231")), format = "%Y%m%d"), by = "day")
-    export_daily[, 1] <- format(export_daily[, 1], "%Y-%m-%d")
+    if (xylogenesis == TRUE) {
+      export_yearly[n.year, 14] <- ring_width[365]        # mm
+      export_yearly[n.year, 17] <- ew_width[365]        # mm
+      export_yearly[n.year, 18] <- ring_density        # kg C m-3
+      export_yearly[n.year, 19] <- ew.cells_tot        # no
+      export_yearly[n.year, 20] <- lw.cells_tot        # no
+    }
 
     out <- list(export_daily, export_yearly)
     names(out) <- c("Daily", "Yearly")
