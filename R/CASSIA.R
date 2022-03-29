@@ -114,7 +114,6 @@ CASSIA <- function(
 
   n.days.export <- 0
   n.year <- 1
-  n.days.sugar.export <- 0 # TODO: do I need this value?
 
   #####
   ## Non yearly dependent coefficients
