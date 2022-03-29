@@ -796,7 +796,8 @@ CASSIA <- function(
     Rg.tot <- tot.Rm <- tot.Rg <- NULL
     Rg.tot <- common[[c("Rg.N")]] * needle.tot.growth + common[[c("Rg.N")]] * bud.tot.growth + common[[c("Rg.R")]] * root.tot.growth + common[[c("Rg.S")]] * height.tot.growth + common[[c("Rg.S")]] * wall.tot.growth
     Rg.root <- common[[c("Rg.R")]] * root.tot.growth
-    tot.Rm <- cumsum(Rm.tot)
+    # NOTE! These are the same for sperling and non-sperling as this is the sum of possible Rm and Rg not what actually happened
+    tot.Rm <- Rm.tot
     tot.Rg <- cumsum(Rg.tot)
 
     if (sperling_model == FALSE) {
@@ -856,7 +857,6 @@ CASSIA <- function(
       export_daily[i + n.days.export, 13] <- if (sperling_model == FALSE) storage[i] else sugar.needles[i] + sugar.roots[i] + sugar.phloem[i] + sugar.xylem.st[i] + sugar.xylem.sh[i] + starch.needles[i] + starch.roots[i] + starch.phloem[i] + starch.xylem.st[i] + starch.xylem.sh[i]
       export_daily[i + n.days.export, 14] <- if (sperling_model == FALSE) sugar[i] else sugar.needles[i] + sugar.roots[i] + sugar.phloem[i] + sugar.xylem.st[i] + sugar.xylem.sh[i]
       export_daily[i + n.days.export, 15] <- if (sperling_model == FALSE) starch[i] else starch.needles[i] + starch.roots[i] + starch.phloem[i] + starch.xylem.st[i] + starch.xylem.sh[i]
-      # TODO: what is this output?
       export_daily[i + n.days.export, 16] <- if (sperling_model == FALSE) storage_term[i] else storage_term_needles[i]+storage_term_phloem[i]+storage_term_roots[i] + storage_term_xylem.sh[i] + storage_term_xylem.sh[i]
       export_daily[i + n.days.export, 17] <- to.mycorrhiza[i]
       export_daily[i + n.days.export, 18] <- if (sperling_model == FALSE) mycorrhiza.tot[i] else NA
@@ -890,8 +890,8 @@ CASSIA <- function(
     export_yearly[n.year, 5] <- height.tot[365] + B0 * CH * parameters[c("HH0"), c(site)] / 1000
     export_yearly[n.year, 6] <- needle.tot[365] + parameters[c("HN0"), c(site)] * rep[[c("m.N")]]
     export_yearly[n.year, 7] <- root.tot[365]
-    export_yearly[n.year, 8] <- tot.Rm[365] # TODO: sperling version
-    export_yearly[n.year, 9] <- tot.Rg[365] # TODO: sperling version
+    export_yearly[n.year, 8] <- tot.Rm[365]
+    export_yearly[n.year, 9] <- tot.Rg[365]
     export_yearly[n.year, 10] <- tot.P[365]
     export_yearly[n.year, 11] <- cumsum(PF)[365]
     export_yearly[n.year, 12] <- cum.Daily.H.tot[365]
