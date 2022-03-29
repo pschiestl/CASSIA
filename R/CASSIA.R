@@ -43,7 +43,7 @@ CASSIA <- function(
   mychorrhiza = TRUE, 			# If allocation to mychorrhiza is taken into account
   root_as_Ding = TRUE,
 
-  sperling_model = FALSE,       # Dynamic sugar model using Sperling's enzyme dynamics TODO: add this as an option
+  sperling_model = FALSE,       # Dynamic sugar model using Sperling's enzyme dynamics
   xylogenesis = FALSE,    # TODO: add the new part from the Lettosuo version
 
   s.D0 = 79,					# DOY to start the calculation of temperature sum, 1=Jan 1; 69=March 1; 79=March 20 for diameter growth. Valid for Finland
@@ -54,7 +54,7 @@ CASSIA <- function(
   ## Input tests!
   #####
   # weather
-  if (ncol(weather) != 7) {stop("Incomplete weather data - not enough variables")}
+  if (ncol(weather) != 7) {stop("Incomplete weather data: variable number incorrect")}
   if (sum(names(weather) == c("date", "T", "P", "TSA", "TSB", "MB", "Rain")) != 7) {stop("Incomplete weather data - incorrect variables, or named incorrectly")}
 
   # Check that the sites are within the sites allowed
@@ -63,10 +63,19 @@ CASSIA <- function(
   if (sperling_model == TRUE) {if (mychorrhiza == T) {
     mychorrhiza = FALSE
     warning("Mycorrhiza has been changed to mycorrhiza = false as mycorrhiza is included explicitly in the Sperling submodel")
-  }
+    }
   }
 
-  # TODO: add tests for the parameter inputs!
+  if (nrow(sperling) != nrow(sperling_p)) {stop("Sperling input is the wrong size!")}
+  if (nrow(parameters) != nrow(parameters_p)) {stop("Parameters input is the wrong size!")}
+  if (nrow(ratios) != nrow(ratios_p)) {stop("Ratios input is the wrong size!")}
+  if (length(common) != length(common_p)) {stop("Common input is the wrong size!")}
+  if (length(repo) != length(repo_p)) {stop("Common input is the wrong size!")}
+  if (rownames(sperling) != names(sperling_p)) {stop("Sperling has the wrong row names")}
+  if (rownames(parameters) != rownames(parameters_p)) {stop("Parameters have the wrong row names")}
+  if (rownames(ratios) != rownames(ratios_p)) {stop("Ratios have the wrong row names")}
+  if (names(common) != names(common_p)) {stop("Ratios have the wrong row names")}
+  if (names(repo) != names(repo_p)) {stop("Ratios have the wrong row names")}
 
   #####
   ## Model conditions derived from model inputs
@@ -81,8 +90,6 @@ CASSIA <- function(
   #####
 
 
-  # TODO: decide the most sensible outputs
-  # TODO: maybe make outputs depend on the original settings
   if (sperling_model == T) {
     export_yearly <- data.frame(matrix(ncol=26, nrow=length(years)))
     export_daily <- data.frame(matrix(ncol=34, nrow=length(years)*365))
@@ -112,15 +119,11 @@ CASSIA <- function(
   #####
   ## Non yearly dependent coefficients
   #####
-  # TODO: should these go in the loop anyway for readability or are there other things that can join this?
-
   # height growth coefficient
 
   height_growth_coefficient <- diameter_growth_coefficient <- NULL
   height_growth_coefficient <- cbind(1997 : 2020, rep(ratios[c("height_growth_coefficient"),c(site)], length.out = length(1997 : 2020)))
   diameter_growth_coefficient <- cbind(1997 : 2020, rep(ratios[c("diameter_growth_coefficient"),c(site)], length.out = length(1997 : 2020)))
-
-
 
   if (growth_decreases == TRUE) {
     height_growth_coefficient <- cbind(1997 : 2020, seq(ratios[c("height_growth_coefficient_max"),c(site)], ratios[c("height_growth_coefficient_min"),c(site)], length.out = length(1997 : 2020)))
@@ -198,7 +201,6 @@ CASSIA <- function(
     Rain <- weather[substring(weather$date, 1, 4) == year, c("Rain")]		    # mm day-1
 
     # Initalising the basic values for these variables
-    # TODO: are they in the right place?
     B0<-pi/4*parameters[c("D0"), c(site)]^2		# basal area in the beginning
     h00<-parameters[c("h0"), c(site)]
     D00 <- parameters[c("D0"), c(site)]
@@ -227,7 +229,6 @@ CASSIA <- function(
 
     fH <- (sH > 0) * (sH < parameters[c("sHc"), c(site)]) * (sin(2 * pi / parameters[c("sHc"), c(site)] * (sH - parameters[c("sHc"), c(site)] / 4)) + 1) / 2		# A function driven by the phase of the annual cycle [0,1]
 
-    # TODO: height_growth_coefficient replace this
     LH <- parameters[c("LH0"), c(site)] * height_growth_coefficient[which(height_growth_coefficient[,1] == year), 2]
     if (LH.estim == TRUE) LH <- LH * GPP_previous_sum[which(GPP_previous_sum[,1] == year), 2] / mean(GPP_previous_sum[,2])
 
@@ -738,7 +739,7 @@ CASSIA <- function(
       needle.tot.growth[i] <- if (sperling_model == FALSE) storage_term[i] * needle.pot.growth[i] else storage_term_needles[i] * needle.pot.growth[i]
       wall.tot.growth[i] <- if (sperling_model == FALSE) storage_term[i] * wall.pot.growth[i] else wall.pot.growth[i] * (0.082179938 * storage_term_phloem[i] + 0.821799379 * storage_term_xylem.st + 0.096020683 * storage_term_xylem.sh)
       bud.tot.growth[i] <- if (sperling_model == FALSE) storage_term[i] * bud.pot.growth[i] else storage_term_needles[i] * bud.pot.growth[i]
-      # TODO: this should be for certain organs
+      # These shouldn't be for intervdal
       GD.tot[i] <- if (sperling_model == FALSE) storage_term[i] * GD[i] else NA
       Rm.tot[i] <- if (sperling_model == FALSE) storage_term_Rm[i] * Rm.a[i] else storage_term_roots[i] * RmR[i] + storage_term_needles[i] * RmN[i] + 0.082179938 * storage_term_phloem[i] * RmS[i] + 0.821799379 * storage_term_xylem.st[i] * RmS[i] + 0.096020683 * storage_term_xylem.sh[i] * RmS[i]
       RmR.tot[i] <- if (sperling_model == FALSE) storage_term_Rm[i] * Rm.a[i] else storage_term_roots[i] * RmR[i]
