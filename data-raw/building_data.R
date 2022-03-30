@@ -75,7 +75,7 @@ parameters_p[10,] <- c(1.7, 2.01) # root.lifetime
 # Hyde: parameters_p from 2008, temperature sum calculated from 1.1.
 parameters_p[11,] <- c(10, 10) # HH0
 parameters_p[12,] <- c(-1.359200388, -4.12008) # sH0
-parameters_p[13,] <- parameters_p[14,] <- c(8.226401284, NA) # LH, LH0
+parameters_p[13,] <- parameters_p[14,] <- c(8.226401284, 8.226401284) # LH, LH0
 parameters_p[15,] <- c(14.59636279, 12.8328) # sHc
 
 #### Needles
@@ -83,7 +83,7 @@ parameters_p[15,] <- c(14.59636279, 12.8328) # sHc
 # Hyde: parameters_p from 2008
 parameters_p[16,] <- c(-8.37584, -3.56589) # sN0
 # TODO: LN is not a constant in the code
-parameters_p[17,] <- parameters_p[18,] <- c(1.849493, NA) # LN, LN0 n_lenght/(0.5*sNc)
+parameters_p[17,] <- parameters_p[18,] <- c(1.849493, 1.849493) # LN, LN0 n_lenght/(0.5*sNc)
 parameters_p[19,] <- c(5.263883, 7.60671) # sNc
 parameters_p[20,] <- c(1, 1) # HN0
 
@@ -178,8 +178,8 @@ save(parameters_p, file = paste0(data.direct, "/parameters_p.RData"))
 ######
 sperling_p <- data.frame(matrix(ncol = 2, nrow = 30))
 names(sperling_p) <- c("Hyde", "Lettosuo")
-sperling_p[1,] <- c(0.3246781, NA) # starch0
-sperling_p[2,] <- c(0.4184208, NA) # sugar0
+sperling_p[1,] <- c(0.3246781, 0.40) # starch0
+sperling_p[2,] <- c(0.4184208, 0.35) # sugar0
 sperling_p[3,] <- c(0.03, NA) # starch.needles0
 sperling_p[4,] <- c(0.037, NA) # starch.phloem0
 sperling_p[5,] <- c(0.034, NA) # starch.xylem.sh0
@@ -193,11 +193,11 @@ sperling_p[12,] <- c(0.021, NA) # sugar.xylem.st0
 sperling_p[13,] <- sperling_p[14,] <- sperling_p[15,] <- sperling_p[16,] <- sperling_p[17,] <- sperling_p[29,] <- c(0.0, 0.0) # Wala
 sperling_p[18,] <- c(0.4211, 0.4211) # carbon.sugar
 sperling_p[19,] <- c(0.4444, 0.4444) # carbon.starch
-sperling_p[20,] <- sperling_p[21,] <- sperling_p[22,] <- sperling_p[23,] <- sperling_p[24,] <- sperling_p[30,] <- c(3, NA) # alfa
-sperling_p[25,] <- c(2, NA) # tau.s
-sperling_p[26,] <- c(2, NA) # tau.t
-sperling_p[27,] <- c(0.3246781, NA) # starch00
-sperling_p[28,] <- c(0.4184208, NA) # sugar00
+sperling_p[20,] <- sperling_p[21,] <- sperling_p[22,] <- sperling_p[23,] <- sperling_p[24,] <- sperling_p[30,] <- c(3, 3) # alfa
+sperling_p[25,] <- c(2, 2) # tau.s
+sperling_p[26,] <- c(2, 2) # tau.t
+sperling_p[27,] <- c(0.3246781, 0.40) # starch00
+sperling_p[28,] <- c(0.4184208, 0.35) # sugar00
 sperling_p[31,] <- c(3, NA)   # Q10s As taken from a crop study for the tree study this model is based on I am assuming that these numbers can be generalised here as well
 sperling_p[32,] <- c(1.8, NA)  # Q10d As taken from a crop study for the tree study this model is based on I am assuming that these numbers can be generalised here as well
 sperling_p[33,] <- c(0.23, NA) # SCb kg C, just above lowest value in starch and sugar 15_16 -- JS notes

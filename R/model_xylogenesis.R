@@ -1,4 +1,4 @@
-model_xylogenesis = function(storage_reduction) {
+model_xylogenesis = function(g.sD.T, LD, fD, storage_reduction) {
   # TODO: make this function operational with all inputs
 
   GD <- g.sD.T * fD * LD	* storage_reduction					# Daily potential number of new cells per day (in one radial cell row), used to be called division
