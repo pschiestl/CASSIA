@@ -265,6 +265,11 @@ CASSIA <- function(
     B0<-pi/4*parameters[c("D0"), c(site)]^2		# basal area in the beginning
     h00<-parameters[c("h0"), c(site)]
     D00 <- parameters[c("D0"), c(site)]
+    if (xylogenesis == TRUE) {
+      parameters[c("LH0"),c(site)] <- h_increment/(0.5*sHc)
+      parameters[c("LN0"),c(site)] <- n_lenght/(0.5*sNc)
+      parameters[c("LR0"),c(site)] <- 2 * m.R.tot / sRc
+    }
 
     ### Photosynthesis
     # Photosynthesis of one tree per day (g C / m2 --> kg C / tree)
@@ -291,9 +296,7 @@ CASSIA <- function(
     # TODO: using the Hyde LH0
     LH <- parameters[c("LH0"), c(site)] * height_growth_coefficient[which(height_growth_coefficient[,1] == year), 2]
     if (LH.estim == TRUE) LH <- LH * GPP_previous_sum[which(GPP_previous_sum[,1] == year), 2] / mean(GPP_previous_sum[,2])
-    if (xylogenesis == TRUE) { # TODO: does this need to be a condition
-      LH = LH * growth_photo_coef
-    }
+    LH = LH * growth_photo_coef
 
     # Daily potential length growth (mm/day)  and length (mm)
     GH <- g.sH * fH * LH
@@ -1127,7 +1130,7 @@ CASSIA <- function(
       export_daily[i + n.days.export, 15] <- if (sperling_model == FALSE) starch[i] else starch.needles[i] + starch.roots[i] + starch.phloem[i] + starch.xylem.st[i] + starch.xylem.sh[i]
       export_daily[i + n.days.export, 16] <- if (sperling_model == FALSE) storage_term[i] else storage_term_needles[i]+storage_term_phloem[i]+storage_term_roots[i] + storage_term_xylem.sh[i] + storage_term_xylem.sh[i]
       export_daily[i + n.days.export, 17] <- to.mycorrhiza[i]
-      export_daily[i + n.days.export, 18] <- if (sperling_model == FALSE) mycorrhiza.tot[i] else NA
+      export_daily[i + n.days.export, 18] <- mycorrhiza.tot[i]
       export_daily[i + n.days.export, 19] <- P[i]
       export_daily[i + n.days.export, 20] <- if (sperling_model == FALSE) to_sugar[i] else NA
       export_daily[i + n.days.export, 21] <- if (sperling_model == FALSE) to_starch[i] else NA
