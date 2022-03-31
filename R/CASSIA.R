@@ -203,8 +203,7 @@ CASSIA <- function(
   ## Year loop
   #####
 
-  # TODO: this is not one, just set to test weather the code copied so far has bugs
-  growth_photo_coef = 1
+  growth_photo_coef = PRELES_GPP(photoparameters)
 
   LAI <- needle_mass <- NULL
   count <- 1
@@ -333,7 +332,7 @@ CASSIA <- function(
       LR <- LR0 <- 2 * repol[[c("m.R.tot")]] / parameters[c("sRc"), c(site)] # root growth rate
     } else {
       LR0 <- 1 # TODO: need to find the value for this in lettosuo
-      LR <- LR0 / parameters[c("root.lifetime"),c(site)] * growth_photo_coef # TODO: growth_photo_coef is defined where?
+      LR <- LR0 / parameters[c("root.lifetime"),c(site)] * growth_photo_coef
     }
 
     if (root_as_Ding == TRUE) {
@@ -1209,6 +1208,7 @@ CASSIA <- function(
     count <- count + 1 # For Sperling
   }   # loop of the years ends
 
+# TODO: date
 export_daily[, 1] <- seq(as.POSIXct(as.character(paste0(years[1], "0101")), format = "%Y%m%d"), as.POSIXct(as.character(paste0(years[n.year-1], "1231")), format = "%Y%m%d"), by = "day")
 export_daily[, 1] <- format(export_daily[, 1], "%Y-%m-%d")
 

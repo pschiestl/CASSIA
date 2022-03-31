@@ -52,7 +52,10 @@ PRELES_GPP <- function(photoparameters) {
     PF = Rprebasso::PRELES(PAR = PAR, TAir = Temp, VPD = VPD, Precip = Rain, CO2=CO2, fAPAR=rep(0.85,365), p = c(rep(NA,4), 0.9357, rep(NA, 4), 0.03273, rep(NA, 20)))$GPP
   }
 
-  return(PF)
+  out <- list(PF, growth_photo_coef)
+  names(out) = c("PF", "growth_photo_coef")
+
+  return(out)
 }
 
 
