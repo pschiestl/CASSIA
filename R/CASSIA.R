@@ -44,7 +44,7 @@ CASSIA <- function(
   root_as_Ding = TRUE,
 
   sperling_model = FALSE,       # Dynamic sugar model using Sperling's enzyme dynamics
-  xylogenesis = FALSE,    # TODO: add the new part from the Lettosuo version
+  xylogenesis = FALSE,
 
   PRELES_GPP = FALSE,
   environment_effect_xylogenesis = FALSE,
@@ -225,15 +225,23 @@ CASSIA <- function(
       }
     }
 
-    # TODO: should this be under needle growth false? Not in other code
-    needle_cohorts <- matrix(ncol = parameters[c("n_age"), c(site)], nrow = length(years))				# Needle age classes (assumed three classes as in central Finland)
-
     # Needle age classes: oldest fall off, the others age with one year
     # The youngest needle class is the (needle_length[year-]/average_length) * 1/3*(estimated needle mass by the biomass equations)
-    if (n.year > 1) {
-      needle_cohorts[n.year, 1] <- cum.Daily.N.tot[365] / parameters[c("n_lenght"), c(site)] * needle_mass[n.year] / 3
-      needle_cohorts[n.year, 2] <- needle_cohorts[n.year-1, 1]
-      needle_cohorts[n.year, 3] <- needle_cohorts[n.year-1, 2]
+    needle_cohorts <- matrix(ncol = parameters[c("n_age"), c(site)], nrow = length(years))				# Needle age classes (assumed three classes as in central Finland)
+
+    if (xylogenesis == TRUE) {
+      if (n.year > 1) {
+        needle_cohorts[n.year, 1] <- needle.tot[365]
+        for (i in 2 : n_age) {
+          needle_cohorts[n.year, i] <- needle_cohorts[n.year-1, i-1]
+        }
+      }
+    } else {
+      if (n.year > 1) {
+        needle_cohorts[n.year, 1] <- cum.Daily.N.tot[365] / parameters[c("n_lenght"), c(site)] * needle_mass[n.year] / 3
+        needle_cohorts[n.year, 2] <- needle_cohorts[n.year-1, 1]
+        needle_cohorts[n.year, 3] <- needle_cohorts[n.year-1, 2]
+      }
     }
 
     # Not used for anything and something is wrong - don´t use the LAI estimates unless corrected!
@@ -539,6 +547,10 @@ CASSIA <- function(
         cell_d_final = c(rep(parameters[c("cell.d.ew"), c(site)], round(ew_cells[365],0)), rep(parameters[c("cell.d.ew"), c(site)], round(lw_cells[365], 0)))
         cell_density = c(rep(cell.density.ew, round(ew_cells[365],0)), rep(cell.density.lw, round(lw_cells[365], 0)))
         ring_density = cumsum(CW * n.W)[365] / (ew_cells[365] * parameters[c("cell.d.ew"), c(site)]^2 * parameters[c("cell.l.ew"),c(site)] + lw_cells[365] * parameters[c("cell.d.ew"), c(site)]^2 * parameters[c("cell.l.lw"),c(site)])
+
+        print(ring_density)
+        print(ew.cells_tot)
+        print(lw.cells_tot)
 
         ew_cells = max(ew_cells)
         lw_cells = max (lw_cells)
@@ -967,11 +979,11 @@ CASSIA <- function(
     # TODO: should this be in vector form or for loop?
     for(i in 1 : n.days) {
       root.tot.growth[i] <- if (sperling_model == FALSE) storage_term[i] * root.pot.growth[i] else {storage_term_roots[i] * root.pot.growth[i]}
-      height.tot.growth[i] <- if (sperling_model == FALSE) storage_term[i] * height.pot.growth[i] else height.pot.growth[i] * (0.082179938 * storage_term_phloem[i] + 0.821799379 * storage_term_xylem.st + 0.096020683 * storage_term_xylem.sh)
+      height.tot.growth[i] <- if (sperling_model == FALSE) storage_term[i] * height.pot.growth[i] else height.pot.growth[i] * (0.082179938 * storage_term_phloem[i] + 0.821799379 * storage_term_xylem.st[i] + 0.096020683 * storage_term_xylem.sh[i])
       needle.tot.growth[i] <- if (sperling_model == FALSE) storage_term[i] * needle.pot.growth[i] else storage_term_needles[i] * needle.pot.growth[i]
       wall.tot.growth[i] <- if (sperling_model == FALSE & xylogenesis == FALSE) {storage_term[i] * wall.pot.growth[i]}
       else if (sperling_model == FALSE & xylogenesis == TRUE) {list_xylogenesis$wall.growth[i]}
-      else {wall.pot.growth[i] * (0.082179938 * storage_term_phloem[i] + 0.821799379 * storage_term_xylem.st + 0.096020683 * storage_term_xylem.sh)}
+      else {wall.pot.growth[i] * (0.082179938 * storage_term_phloem[i] + 0.821799379 * storage_term_xylem.st[i] + 0.096020683 * storage_term_xylem.sh[i])}
       bud.tot.growth[i] <- if (sperling_model == FALSE) storage_term[i] * bud.pot.growth[i] else storage_term_needles[i] * bud.pot.growth[i]
       # These shouldn't be for intervdal
       GD.tot[i] <- if (sperling_model == FALSE & xylogenesis == FALSE) {storage_term[i] * GD[i]}
@@ -1147,50 +1159,54 @@ CASSIA <- function(
       }
     }
 
-    n.days.export <- n.days.export + 365
+    n.days.export <- n.days.export + n.days
 
     # Yearly output data
     export_yearly[n.year, 1] <- year
-    export_yearly[n.year, 2] <- if (sperling_model == F) starch[365] else starch.needles[365] + starch.roots[365] + starch.phloem[365] + starch.xylem.st[365] + starch.xylem.sh[365]
-    export_yearly[n.year, 3] <- if (sperling_model == F) sugar[365] else sugar.needles[365] + sugar.roots[365] + sugar.phloem[365] + sugar.xylem.st[365] + sugar.xylem.sh[365]
-    export_yearly[n.year, 4] <- wall.tot[365]
-    export_yearly[n.year, 5] <- height.tot[365] + B0 * CH * parameters[c("HH0"), c(site)] / 1000
-    export_yearly[n.year, 6] <- needle.tot[365] + parameters[c("HN0"), c(site)] * repol[[c("m.N")]]
-    export_yearly[n.year, 7] <- root.tot[365]
-    export_yearly[n.year, 8] <- tot.Rm[365]
-    export_yearly[n.year, 9] <- tot.Rg[365]
-    export_yearly[n.year, 10] <- tot.P[365]
-    export_yearly[n.year, 11] <- cumsum(PF)[365]
-    export_yearly[n.year, 12] <- cum.Daily.H.tot[365]
-    export_yearly[n.year, 13] <- cum.Daily.N.tot[365]
-    export_yearly[n.year, 14] <- if (xylogenesis == FALSE) tot.mm[365] else ring_width[365]  # mm
+    export_yearly[n.year, 2] <- if (sperling_model == F) starch[n.days] else starch.needles[n.days] + starch.roots[n.days] + starch.phloem[n.days] + starch.xylem.st[n.days] + starch.xylem.sh[n.days]
+    export_yearly[n.year, 3] <- if (sperling_model == F) sugar[n.days] else sugar.needles[n.days] + sugar.roots[n.days] + sugar.phloem[n.days] + sugar.xylem.st[n.days] + sugar.xylem.sh[n.days]
+    export_yearly[n.year, 4] <- wall.tot[n.days]
+    export_yearly[n.year, 5] <- height.tot[n.days] + B0 * CH * parameters[c("HH0"), c(site)] / 1000
+    export_yearly[n.year, 6] <- needle.tot[n.days] + parameters[c("HN0"), c(site)] * repol[[c("m.N")]]
+    export_yearly[n.year, 7] <- root.tot[n.days]
+    export_yearly[n.year, 8] <- tot.Rm[n.days]
+    export_yearly[n.year, 9] <- tot.Rg[n.days]
+    export_yearly[n.year, 10] <- tot.P[n.days]
+    export_yearly[n.year, 11] <- cumsum(PF)[n.days]
+    export_yearly[n.year, 12] <- cum.Daily.H.tot[n.days]
+    export_yearly[n.year, 13] <- cum.Daily.N.tot[n.days]
+    export_yearly[n.year, 14] <- if (xylogenesis == FALSE) tot.mm[n.days] else ring_width[n.days]  # mm
     export_yearly[n.year, 15] <- needle_mass[n.year]
     export_yearly[n.year, 16] <- sum(needle_cohorts[n.year,])
     if (sperling_model == T) {
-      export_yearly[n.year, 17] <- sugar.needles[365]
-      export_yearly[n.year, 18] <- sugar.phloem[365]
-      export_yearly[n.year, 19] <- sugar.xylem.sh[365]
-      export_yearly[n.year, 20] <- sugar.xylem.st[365]
-      export_yearly[n.year, 21] <- sugar.roots[365]
-      export_yearly[n.year, 22] <- starch.needles[365]
-      export_yearly[n.year, 23] <- starch.phloem[365]
-      export_yearly[n.year, 24] <- starch.xylem.sh[365]
-      export_yearly[n.year, 25] <- starch.xylem.st[365]
-      export_yearly[n.year, 26] <- starch.roots[365]
+      export_yearly[n.year, 17] <- sugar.needles[n.days]
+      export_yearly[n.year, 18] <- sugar.phloem[n.days]
+      export_yearly[n.year, 19] <- sugar.xylem.sh[n.days]
+      export_yearly[n.year, 20] <- sugar.xylem.st[n.days]
+      export_yearly[n.year, 21] <- sugar.roots[n.days]
+      export_yearly[n.year, 22] <- starch.needles[n.days]
+      export_yearly[n.year, 23] <- starch.phloem[n.days]
+      export_yearly[n.year, 24] <- starch.xylem.sh[n.days]
+      export_yearly[n.year, 25] <- starch.xylem.st[n.days]
+      export_yearly[n.year, 26] <- starch.roots[n.days]
     }
     if (xylogenesis == TRUE) {
-      export_yearly[n.year, 17] <- ew_width[365]            # mm
-      export_yearly[n.year, 18] <- ring_density[365]        # kg C m-3
-      export_yearly[n.year, 19] <- ew.cells_tot[365]        # no
-      export_yearly[n.year, 20] <- lw.cells_tot[365]        # no
+      export_yearly[n.year, 17] <- ew_width[n.days]            # mm
+      export_yearly[n.year, 18] <- ring_density[n.days]        # kg C m-3
+      export_yearly[n.year, 19] <- ew.cells_tot[n.days]        # no
+      export_yearly[n.year, 20] <- lw.cells_tot[n.days]        # no
     }
 
     out <- list(export_daily, export_yearly)
     names(out) <- c("Daily", "Yearly")
 
-    count <- count + 1 # For Sperling
-    n.year=n.year + 1 # For actual years
+    if (sperling_model == T) {
+      if (count%%2 == 0) {n.year=n.year + 1}
+    } else {
+      n.year=n.year + 1
+    } # For actual years
 
+    count <- count + 1 # For Sperling
   }   # loop of the years ends
 
 export_daily[, 1] <- seq(as.POSIXct(as.character(paste0(years[1], "0101")), format = "%Y%m%d"), as.POSIXct(as.character(paste0(years[n.year-1], "1231")), format = "%Y%m%d"), by = "day")
