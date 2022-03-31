@@ -190,8 +190,7 @@ CASSIA <- function(
   if (site == "Hyde") {
     stem.no <- cbind(1997 : 2020, rep(1010, length.out = length(1997 : 2020)))	# Photosynthesis calculated with SPP-model for tree class 15-20 cm. Then compared with eddy GPP, determined with which stem no. the portion of eddy GPP is same as SPP estimate.
   } else if (site == "Lettosuo") {
-    # TODO: change value
-    stem.no <- cbind(1997 : 2020, rep(1010, length.out = length(1997 : 2020)))	# Photosynthesis calculated with SPP-model for tree class 15-20 cm. Then compared with eddy GPP, determined with which stem no. the portion of eddy GPP is same as SPP estimate.
+    stem.no <- cbind(1997 : 2020, rep(500, length.out = length(1997 : 2020)))	# Photosynthesis calculated with PRELES or SPP-model.
   }
 
   # Carbon to height growth
@@ -292,7 +291,6 @@ CASSIA <- function(
 
     fH <- (sH > 0) * (sH < parameters[c("sHc"), c(site)]) * (sin(2 * pi / parameters[c("sHc"), c(site)] * (sH - parameters[c("sHc"), c(site)] / 4)) + 1) / 2		# A function driven by the phase of the annual cycle [0,1]
 
-    # TODO: using the Hyde LH0
     LH <- parameters[c("LH0"), c(site)] * height_growth_coefficient[which(height_growth_coefficient[,1] == year), 2]
     if (LH.estim == TRUE) LH <- LH * GPP_previous_sum[which(GPP_previous_sum[,1] == year), 2] / mean(GPP_previous_sum[,2])
     LH = LH * growth_photo_coef
@@ -315,11 +313,8 @@ CASSIA <- function(
     fN <- (sN > 0) * (sN < parameters[c("sNc"), c(site)]^2) * (parameters[c("sNc"), c(site)] * sN^(1 / 2) - sN) / (parameters[c("sNc"), c(site)]^2 / 4)	# A function driven by the phase of the annual cycle [0,1] (annual pattern of growth)
     fN[is.na(fN)] <- 0
 
-    LN <- parameters[c("LN0"), c(site)] * rep(n.days, 1) # TODO: correct this, LN0 from hyde used for lettosuo
     if (LN.estim==TRUE) LN <- parameters[c("LN0"), c(site)] * GPP_previous_sum[which(GPP_previous_sum[,1] == year), 2] / mean(GPP_previous_sum[,2])
-    if (xylogenesis == TRUE) { # TODO: does this need to be a condition
-      LN = LN * growth_photo_coef # TODO: check this is correct against the original code! Note N and H
-    }
+    LN = LN * growth_photo_coef
 
     # Daily potential length growth (mm/day)  and length (mm)  of needles
     GN <- g * fN * LN
@@ -334,8 +329,7 @@ CASSIA <- function(
     if (site == "Hyde") {
       LR <- LR0 <- 2 * repol[[c("m.R.tot")]] / parameters[c("sRc"), c(site)] # root growth rate
     } else {
-      LR0 <- 1 # TODO: need to find the value for this in lettosuo
-      LR <- LR0 / parameters[c("root.lifetime"),c(site)] * growth_photo_coef
+      LR <- parameters[c("LR0"), c(site)] / parameters[c("root.lifetime"),c(site)] * growth_photo_coef
     }
 
     if (root_as_Ding == TRUE) {
@@ -410,7 +404,7 @@ CASSIA <- function(
     GD[is.na(GD)] <- 0
     tot.cells.pot <- cumsum(GD)
 
-    storage_reduction = 1 # TODO: replace with the actual value, just to make sure there are no bugs
+    storage_reduction = rep(1, n.days)
 
     if (xylogenesis == TRUE) {
       GD <- g.sD.T * fD * LD	* storage_reduction					# Daily potential number of new cells per day (in one radial cell row), used to be called division
@@ -600,9 +594,7 @@ CASSIA <- function(
 
       # Carbon to wall formation
       # Carbon.daily.rate determined in parameters_common.R but NOTE!!!! not used at the moment, replaced by a parameter set to result in density app. 200 kg C m-3!
-      # TODO: which CW
       CW <- (sD < parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * Carbon.daily.rate.ew + (sD >= parameters[c("sDc"), c(site)]^2 / parameters[c("Uggla"), c(site)]) * Carbon.daily.rate.lw
-      CW <- rep(1.8 * 10^-11, length.out = n.days)
 
       # The use of carbon to wall growth kg C per day
       wall.pot.growth <- n.rows * CW * n.W.pot
@@ -632,9 +624,6 @@ CASSIA <- function(
     # Factor driving the phase of the annual cycle of buds (no. of days after needle growth onset).
     day.no <- 1 : n.days
 
-    # TODO: which sB
-
-    sB <- cumsum(day.no>parameters[c("sB0"), c(site)])								# The phase of the annual cycle of bud growth
     # xylogenesis version below
     sB <- cumsum(day.no>parameters[c("sB0"), c(site)])								# The phase of the annual cycle of bud growth
 
@@ -979,21 +968,23 @@ CASSIA <- function(
     ########### Total growth and carbon consumption
     #  Occurred growth kg C day-1 (potential growth * storage effect)
     # TODO: should this be in vector form or for loop?
-    for(i in 1 : n.days) {
-      root.tot.growth[i] <- if (sperling_model == FALSE) storage_term[i] * root.pot.growth[i] else {storage_term_roots[i] * root.pot.growth[i]}
-      height.tot.growth[i] <- if (sperling_model == FALSE) storage_term[i] * height.pot.growth[i] else height.pot.growth[i] * (0.082179938 * storage_term_phloem[i] + 0.821799379 * storage_term_xylem.st[i] + 0.096020683 * storage_term_xylem.sh[i])
-      needle.tot.growth[i] <- if (sperling_model == FALSE) storage_term[i] * needle.pot.growth[i] else storage_term_needles[i] * needle.pot.growth[i]
-      wall.tot.growth[i] <- if (sperling_model == FALSE & xylogenesis == FALSE) {storage_term[i] * wall.pot.growth[i]}
-      else if (sperling_model == FALSE & xylogenesis == TRUE) {list_xylogenesis$wall.growth[i]}
-      else {wall.pot.growth[i] * (0.082179938 * storage_term_phloem[i] + 0.821799379 * storage_term_xylem.st[i] + 0.096020683 * storage_term_xylem.sh[i])}
-      bud.tot.growth[i] <- if (sperling_model == FALSE) storage_term[i] * bud.pot.growth[i] else storage_term_needles[i] * bud.pot.growth[i]
-      # These shouldn't be for intervdal
-      GD.tot[i] <- if (sperling_model == FALSE & xylogenesis == FALSE) {storage_term[i] * GD[i]}
-      else if (sperling_model == FALSE & xylogenesis == TRUE) {list_xylogenesis$GD[i]}
-      else {NA}
-      Rm.tot[i] <- if (sperling_model == FALSE) storage_term_Rm[i] * Rm.a[i] else storage_term_roots[i] * RmR[i] + storage_term_needles[i] * RmN[i] + 0.082179938 * storage_term_phloem[i] * RmS[i] + 0.821799379 * storage_term_xylem.st[i] * RmS[i] + 0.096020683 * storage_term_xylem.sh[i] * RmS[i]
-      RmR.tot[i] <- if (sperling_model == FALSE) storage_term_Rm[i] * Rm.a[i] else storage_term_roots[i] * RmR[i]
-    }
+    root.tot.growth <- if (sperling_model == FALSE) storage_term * root.pot.growth else {storage_term_roots * root.pot.growth}
+    height.tot.growth <- if (sperling_model == FALSE) storage_term * height.pot.growth else height.pot.growth * (0.082179938 * storage_term_phloem + 0.821799379 * storage_term_xylem.st + 0.096020683 * storage_term_xylem.sh)
+    needle.tot.growth <- if (sperling_model == FALSE) storage_term * needle.pot.growth else storage_term_needles * needle.pot.growth
+    wall.tot.growth <- if (sperling_model == FALSE & xylogenesis == FALSE) {storage_term * wall.pot.growth}
+    # TODO: This should be done with xylogenesis using starch storage, make xylogenesis a seperate function
+    else if (sperling_model == FALSE & xylogenesis == TRUE) {list_xylogenesis$wall.growth}
+    else {wall.pot.growth * (0.082179938 * storage_term_phloem + 0.821799379 * storage_term_xylem.st + 0.096020683 * storage_term_xylem.sh)}
+    bud.tot.growth <- if (sperling_model == FALSE) storage_term * bud.pot.growth else storage_term_needles * bud.pot.growth
+    # These shouldn't be for intervdal
+    average_storage <- (storage_term_needles+storage_term_phloem+storage_term_roots + storage_term_xylem.sh + storage_term_xylem.sh)/5
+    GD.tot <-  if (sperling_model == FALSE & xylogenesis == FALSE) {storage_term * GD}
+    # TODO: This should be done with xylogenesis using starch storage, make xylogenesis a seperate function
+    else if (sperling_model == FALSE & xylogenesis == TRUE) {list_xylogenesis$GD}
+    else if (sperling_model == TRUE & xylogenesis == FALSE) {GD * average_storage} # Average from all of the organs
+    Rm.tot <- if (sperling_model == FALSE) storage_term_Rm * Rm.a else storage_term_roots * RmR + storage_term_needles * RmN + 0.082179938 * storage_term_phloem * RmS + 0.821799379 * storage_term_xylem.st * RmS + 0.096020683 * storage_term_xylem.sh * RmS
+    RmR.tot <- if (sperling_model == FALSE) storage_term_Rm * Rm.a else storage_term_roots * RmR
+
     # TODO: add back in when the model_xylogenesis function works
     # if (xylogenesis == TRUE) {tot_xylogenesis = model_xylogenesis(storage_term)}
 
@@ -1207,7 +1198,6 @@ CASSIA <- function(
     count <- count + 1 # For Sperling
   }   # loop of the years ends
 
-# TODO: date
 export_daily[, 1] <- format(seq(as.POSIXct(as.character(paste0(years[1], "0101")), format = "%Y%m%d"), as.POSIXct(as.character(paste0(years[n.year-1], "1231")), format = "%Y%m%d"), by = "day"), "%Y-%m-%d")
 out <- list(export_daily, export_yearly)
 names(out) <- c("Daily", "Yearly")
