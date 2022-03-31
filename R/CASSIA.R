@@ -1115,7 +1115,6 @@ CASSIA <- function(
     tot.consumption <- tot.growth + tot.Rm[365] + tot.Rg[365]
     tot.resp <- tot.Rm + tot.Rg		 								# Total carbon used so far to growth and respiration
 
-
     # Measurements and output
     for (i in 1 : n.days) {
       export_daily[i + n.days.export, 1] <- NA
@@ -1166,7 +1165,9 @@ CASSIA <- function(
       }
     }
 
-    n.days.export <- n.days.export + n.days
+    if (sperling_model == FALSE | count%%2 == 0) {
+      n.days.export <- n.days.export + n.days
+    }
 
     # Yearly output data
     export_yearly[n.year, 1] <- year
