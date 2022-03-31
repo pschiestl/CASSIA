@@ -347,9 +347,15 @@ CASSIA <- function(
       # Carbon to root growth per day (if there's no carbon limitation) (kg C / day)
       GR <- fR * LR * gR
     } else { # TODO: check conditions
-      gR <- (Tsb > common[[c("TR0")]]) * (1 / (1 + exp(-common[[c("a")]] * ((Tsb - common[[c("TR0")]]) - common[[c("b")]])))) * (1 - 1 / exp(M.soil * 10)) # Temp and M driving the phase of the annual cycle of root growth
+      if (xylogenesis == FALSE) {
+        gR <- (Tsb > common[[c("TR0")]]) * (1 / (1 + exp(-common[[c("a")]] * ((Tsb - common[[c("TR0")]]) - common[[c("b")]])))) * (1 - 1 / exp(M.soil * 10)) # Temp and M driving the phase of the annual cycle of root growth
+      } else {
+        soil_moisture_effect <- 1 # TODO: Find the original value
+        gR <- (Tsb > TR0) * (1 / (1 + exp(-a * ((Tsb - TR0) - b)))) * soil_moisture_effect # Temp and M driving the phase of the annual cycle of root growth
+      }
       sR <- parameters[c("sR0"), c(site)] + cumsum(gR)										# The phase of the annual cycle of root growth
       fR <- (sR < parameters[c("sRc"), c(site)]) * (sR > 0) * (sin(2 * pi / parameters[c("sRc"), c(site)] * (sR - parameters[c("sRc"), c(site)] / 4)) + 1) / 2	# A function driven by the phase of the annual cycle (annual pattern of growth) [0,1]
+
 
       # Carbon to root growth per day (if there's no carbon limitation) (kg C / day)
       GR <- fR * LR * gR
@@ -853,7 +859,6 @@ CASSIA <- function(
       DF_rm[i] = min(max(sugar.roots[i-1]+starch.roots[i-1] - sperling[c("myco.thresh"),c(site)],0), sugar.roots[i-1])
 
       # Rm.a matainence resperation seperated into organs
-      # TODO: should en.pot.growth be for each organ?
 
       sugar.needles[i] <- sugar.needles[i-1] + P[i] -
         RmN[i] * storage_term_needles[i] - # maintenance respiration
@@ -1085,9 +1090,9 @@ CASSIA <- function(
     }
 
     #### Total daily growth, total growth so far, total carbon consumption and total respiration (kg C day-1 or kg C)
+    daily.tot.growth <- daily.tot <- daily.consumption <- tot.consumption <- NULL
+    daily.tot.growth <- height.tot.growth + wall.tot.growth + needle.tot.growth + root.tot.growth + bud.tot.growth  	# Total daily growth
     if (sperling_model == F) {
-      daily.tot.growth <- daily.tot <- daily.consumption <- tot.consumption <- NULL
-      daily.tot.growth <- height.tot.growth + wall.tot.growth + needle.tot.growth + root.tot.growth + bud.tot.growth  	# Total daily growth
       daily.consumption <- storage_term_Rm * Rm.a +
         (1 + common[[c("Rg.S")]]) * storage_term * height.pot.growth +
         (1 + common[[c("Rg.S")]]) * storage_term * wall.pot.growth +
@@ -1095,11 +1100,21 @@ CASSIA <- function(
         (1 + common[[c("Rg.R")]]) * storage_term * root.pot.growth +
         (1 + common[[c("Rg.N")]]) * storage_term * bud.pot.growth +
         to.mycorrhiza								# Total daily consumption
-      tot.growth.sofar <- cumsum(root.tot.growth + height.tot.growth + wall.tot.growth + needle.tot.growth + bud.tot.growth)
-      tot.growth <- cumsum(daily.tot.growth)[365]											# Total growth so far + formation of buds
-      tot.consumption <- tot.growth + tot.Rm[365] + tot.Rg[365]
-      tot.resp <- tot.Rm + tot.Rg		 								# Total carbon used so far to growth and respiration
-    } # TODO: sperling verison
+    } else {
+      daily.consumption <- 0.082179938 * RmS * storage_term_phloem + 0.096020683 * RmS * storage_term_xylem.sh + 0.821799379 * RmS * storage_term_xylem.st +
+        RmN * storage_term_needles + RmR * storage_term_roots +
+        (1 + common[[c("Rg.S")]]) * height.pot.growth * (0.082179938 * storage_term_phloem + 0.821799379 * storage_term_xylem.st + 0.096020683 * storage_term_xylem.sh) +
+        (1 + common[[c("Rg.S")]]) * wall.pot.growth * (0.082179938 * storage_term_phloem + 0.821799379 * storage_term_xylem.st + 0.096020683 * storage_term_xylem.sh) +
+        (1 + common[[c("Rg.N")]]) * storage_term_needles * needle.pot.growth +
+        (1 + common[[c("Rg.R")]]) * storage_term_roots * root.pot.growth +
+        (1 + common[[c("Rg.N")]]) * storage_term_needles * bud.pot.growth +
+        to.mycorrhiza								# Total daily consumption
+    }
+    tot.growth.sofar <- cumsum(root.tot.growth + height.tot.growth + wall.tot.growth + needle.tot.growth + bud.tot.growth)
+    tot.growth <- cumsum(daily.tot.growth)[365]											# Total growth so far + formation of buds
+    tot.consumption <- tot.growth + tot.Rm[365] + tot.Rg[365]
+    tot.resp <- tot.Rm + tot.Rg		 								# Total carbon used so far to growth and respiration
+
 
     # Measurements and output
     for (i in 1 : n.days) {
