@@ -203,8 +203,6 @@ CASSIA <- function(
   ## Year loop
   #####
 
-  growth_photo_coef = PRELES_GPP(photoparameters)
-
   LAI <- needle_mass <- NULL
   count <- 1
 
@@ -256,6 +254,13 @@ CASSIA <- function(
     M.soil <- weather[substring(weather$date, 1, 4) == year, c("MB")]		# Soil moisture (m3 /m3) in B-horizon
     Rain <- weather[substring(weather$date, 1, 4) == year, c("Rain")]		    # mm day-1
 
+    # CO2, VPD and PAR preles
+
+    growth_photo_coef <- 1
+    if (PRELES_GPP == TRUE) {
+      growth_photo_coef = PRELES_GPP(photoparameters, Temp, PF, Tsa, Tsb, M.soil, Rain)
+    }
+
     # Initalising the basic values for these variables
     B0<-pi/4*parameters[c("D0"), c(site)]^2		# basal area in the beginning
     h00<-parameters[c("h0"), c(site)]
@@ -264,10 +269,6 @@ CASSIA <- function(
     ### Photosynthesis
     # Photosynthesis of one tree per day (g C / m2 --> kg C / tree)
     P <- tot.P <- NULL
-
-    if (PRELES_GPP == TRUE) {
-      source(paste(directory,"GPP_preles.R", sep="")) 			## Predicting GPP with PRELES
-    }
 
     P <- PF / stem.no[which(stem.no[,1] == year), 2] * 10000 / 1000
 
@@ -746,7 +747,7 @@ CASSIA <- function(
     Ad.needles <- Ad.phloem <- Ad.roots <- Ad.xylem.sh <- Ad.xylem.st <- As.needles <- As.phloem <- As.roots <- As.xylem.sh <- As.xylem.st <- NULL
     Ks.needles <- Ks.phloem <- Ks.roots <- Ks.xylem.sh <- Ks.xylem.st <- Kd.needles <- Kd.phloem <- Kd.roots <- Kd.xylem.sh <- Kd.xylem.st <-  NULL
     sugar.needles <- sugar.phloem <- sugar.roots <- sugar.xylem.sh <- sugar.xylem.st <- starch.needles <- starch.phloem <- starch.roots <- starch.xylem.sh <- starch.xylem.st <- NULL
-    to_sugar.needles <- to_sugar.phloem <- to_sugar.roots <- to_sugar.xylem.sh <- to_sugar.xylem.st <- NULL
+    to_sugar.needles <- to_sugar.phloem <- to_sugar.roots <- to_sugar.xylem.sh <- to_sugar.xylem.st <- to.mycorrhiza <-  NULL
     sugar.to_phloem <- sugar.to_roots <- starch.to_phloem <- starch.to_roots <- sugar.to_xylem.sh <- sugar.to_xylem.st <- sugar.to_myco <- NULL
     DF_np <- DF_pr <- DF_rm <- DF_pxsh <- DF_pxst <- NULL
 
@@ -901,6 +902,7 @@ CASSIA <- function(
         sperling[c("k_pxst"),c(site)] * DF_pxst[i] +
         (Kd.xylem.st[i] - Ks.xylem.st[i]) * sperling[c("carbon.sugar"),c(site)] * 0.001 * 2.8
 
+      to.mycorrhiza[i] <- DF_rm[i]
       # As the tree now has the bucket model I have changed photosynthesis derived allocation to just excess in roots as it should get here from the tree
       # I am assuming that that this is why photosynthesis was driving it before, it was just a measure of the excess photosynthates
       # (sH[i] > sHc) * ((sugar.roots[i-1] + starch.roots[i-1]) > optimal.level.myco) * P[i] * growth.myco # belowground allocation
@@ -990,7 +992,7 @@ CASSIA <- function(
       Rm.tot[i] <- if (sperling_model == FALSE) storage_term_Rm[i] * Rm.a[i] else storage_term_roots[i] * RmR[i] + storage_term_needles[i] * RmN[i] + 0.082179938 * storage_term_phloem[i] * RmS[i] + 0.821799379 * storage_term_xylem.st[i] * RmS[i] + 0.096020683 * storage_term_xylem.sh[i] * RmS[i]
       RmR.tot[i] <- if (sperling_model == FALSE) storage_term_Rm[i] * Rm.a[i] else storage_term_roots[i] * RmR[i]
     }
-    # TODO: add back in when tge model_xylogenesis works
+    # TODO: add back in when the model_xylogenesis function works
     # if (xylogenesis == TRUE) {tot_xylogenesis = model_xylogenesis(storage_term)}
 
     # Total occurred growth so far kg C
@@ -1054,13 +1056,12 @@ CASSIA <- function(
       to.mycorrhiza = (Tsb > 10) * (storage > optimal.level.myco) * P * parameters[c("growth.myco"),c(site)]
       mycorrhiza.tot = cumsum(to.mycorrhiza)
     } else {
-      # TODO: sperling output
-      to.mycorrhiza = NA
+      mycorrhiza.tot = cumsum(to.mycorrhiza)
     }
 
     # Carbon used for respiration
     Rg.tot <- tot.Rm <- tot.Rg <- NULL
-    # TODO: there is no bud in xylo version why is this?
+    # TODO: Already asked Pauliina: should the bud growth respiration be assumed to be the same as the needle respiration
     Rg.tot <- common[[c("Rg.N")]] * needle.tot.growth + common[[c("Rg.N")]] * bud.tot.growth + common[[c("Rg.R")]] * root.tot.growth + common[[c("Rg.S")]] * height.tot.growth + common[[c("Rg.S")]] * wall.tot.growth
     Rg.root <- common[[c("Rg.R")]] * root.tot.growth
     # NOTE! These are the same for sperling and non-sperling as this is the sum of possible Rm and Rg not what actually happened

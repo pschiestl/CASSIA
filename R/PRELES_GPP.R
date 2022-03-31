@@ -1,4 +1,4 @@
-PRELES_GPP <- function(photoparameters) {
+PRELES_GPP <- function(photoparameters, Temp, PF, Tsa, Tsb, M.soil, Rain) {
   # Preles-parameters
   preles_parameters = c(
     413.0, ## 1 soildepth
