@@ -652,7 +652,6 @@ CASSIA <- function(
       Rm_accl = 0.85
     }
 
-    # TODO: check original formulas with RmS.a currently matches Lettosuo parameters
     RmS.a <- parameters[c("Rm.S"),c(site)] * (exp(log(parameters[c("Q10.S"),c(site)]) / 10 * (Temp)) - 0.7) * m.S.tot * ratios[c("sapwood.share"),c(site)] * Rm_accl # Maintenance respiration of wood
     RmR.a <- parameters[c("Rm.R"),c(site)] * (exp(log(parameters[c("Q10.R"),c(site)]) / 10 * (Tsa)) - exp(-log(parameters[c("Q10.R"),c(site)]) / 2)) * repol[[c("m.R.tot")]] * Ra.share * Rm_accl	# Maintenance respiration of roots
     RmN.a <- parameters[c("Rm.N"),c(site)] * (exp(log(parameters[c("Q10.N"),c(site)]) / 10 * (Temp)) - 0.7) * repol[[c("m.N.tot")]] * Rm_accl						# Maintenance respiration of needles
