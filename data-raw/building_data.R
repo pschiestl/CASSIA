@@ -82,7 +82,6 @@ parameters_p[15,] <- c(14.59636279, 12.8328) # sHc
 # Lettosuo: parameters_p from 2015 and 2016
 # Hyde: parameters_p from 2008
 parameters_p[16,] <- c(-8.37584, -3.56589) # sN0
-# TODO: LN is not a constant in the code
 parameters_p[17,] <- parameters_p[18,] <- c(1.849493, 1.849493) # LN, LN0 n_lenght/(0.5*sNc)
 parameters_p[19,] <- c(5.263883, 7.60671) # sNc
 parameters_p[20,] <- c(1, 1) # HN0
@@ -165,12 +164,14 @@ parameters_p[51,] <- c(309.0938, 309.0938)# h_increment
 # m2 kg-1 ICOS 2018, half of total needle area / needle mass
 parameters_p[52,] <- c(13, 5.5) # SLA
 
+parameters_p[53,] <- c(NA, NA) # LR0
+
 row.names(parameters_p) <- c("Q10.N", "Rm.NR", "Q10.S", "Rm.S", "Q10.R", "Rm.R", "sR0", "sRc", "growth.myco", "root.lifetime",
 "HH0", "sH0", "LH", "LH0", "sHc", "sN0", "LN", "LN0", "sNc", "HN0", "sD0.Trad", "LD", "LD0", "sDc", "sDc.T.count",
 "tau.Ee", "tau.El", "tau.We", "tau.Wl", "tau.GPP", "Uggla", "sB0", "sBc", "LB",
 "cell.d.ew", "cell.d.lw", "cell.l.ew", "cell.l.lw", "cell.wall.density.ew", "cell.wall.density.lw",
 "wall.thickness.ew", "wall.thickness.lw", "cell.volume.growth.per.day.ew", "cell.volumn.growth.per.day.lw",
-"density_tree", "carbon_share", "D0", "h0", "n_age", "n_lenght", "h_increment", "SLA")
+"density_tree", "carbon_share", "D0", "h0", "n_age", "n_lenght", "h_increment", "SLA", "LR0")
 save(parameters_p, file = paste0(data.direct, "/parameters_p.RData"))
 
 ######
