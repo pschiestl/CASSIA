@@ -49,7 +49,6 @@ CASSIA <- function(
   PRELES_GPP = FALSE,
   environment_effect_xylogenesis = FALSE,
 
-  # TODO: this could be in the wrong place
   photoparameters = 3,
   temp_rise = FALSE,
   drought = FALSE,
@@ -1199,9 +1198,6 @@ CASSIA <- function(
       export_yearly[n.year, 20] <- lw.cells_tot[n.days]        # no
     }
 
-    out <- list(export_daily, export_yearly)
-    names(out) <- c("Daily", "Yearly")
-
     if (sperling_model == T) {
       if (count%%2 == 0) {n.year=n.year + 1}
     } else {
@@ -1212,8 +1208,10 @@ CASSIA <- function(
   }   # loop of the years ends
 
 # TODO: date
-export_daily[, 1] <- seq(as.POSIXct(as.character(paste0(years[1], "0101")), format = "%Y%m%d"), as.POSIXct(as.character(paste0(years[n.year-1], "1231")), format = "%Y%m%d"), by = "day")
-export_daily[, 1] <- format(export_daily[, 1], "%Y-%m-%d")
+export_daily[, 1] <- format(seq(as.POSIXct(as.character(paste0(years[1], "0101")), format = "%Y%m%d"), as.POSIXct(as.character(paste0(years[n.year-1], "1231")), format = "%Y%m%d"), by = "day"), "%Y-%m-%d")
+out <- list(export_daily, export_yearly)
+names(out) <- c("Daily", "Yearly")
+
 
 return(out)
 
