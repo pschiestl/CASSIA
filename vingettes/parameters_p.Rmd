@@ -21,9 +21,9 @@ dim(parameters_p)
 colnames(parameters_p)
 ```
 
-| Parameter Name | Meaning   | Reference |
-|:--------------:|:---------:|:---------:|
-|Q10.N            |||
+| Parameter Name   | Meaning   | Reference |
+|:----------------:|:---------:|:---------:|
+|Q10.N             |           |           |
 |Rm.NR            |||
 |Q10.S            |||
 |Rm.S             |||
