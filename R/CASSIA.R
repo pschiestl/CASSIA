@@ -550,10 +550,6 @@ CASSIA <- function(
         cell_density = c(rep(cell.density.ew, round(ew_cells[365],0)), rep(cell.density.lw, round(lw_cells[365], 0)))
         ring_density = cumsum(CW * n.W)[365] / (ew_cells[365] * parameters[c("cell.d.ew"), c(site)]^2 * parameters[c("cell.l.ew"),c(site)] + lw_cells[365] * parameters[c("cell.d.ew"), c(site)]^2 * parameters[c("cell.l.lw"),c(site)])
 
-        print(ring_density)
-        print(ew.cells_tot)
-        print(lw.cells_tot)
-
         ew_cells = max(ew_cells)
         lw_cells = max (lw_cells)
       }
@@ -749,6 +745,7 @@ CASSIA <- function(
     DF_np <- DF_pr <- DF_rm <- DF_pxsh <- DF_pxst <- NULL
 
     As0 <- Te0 <- NULL
+
 
     starch0 <- sperling[c("starch.needles0"),c(site)] + sperling[c("starch.phloem0"),c(site)] + sperling[c("starch.roots0"),c(site)] + sperling[c("starch.xylem.sh0"),c(site)] + sperling[c("starch.xylem.st00"),c(site)]
     sugar0 <- sperling[c("sugar.needles0"),c(site)] + sperling[c("sugar.phloem0"),c(site)] + sperling[c("sugar.roots0"),c(site)] + sperling[c("sugar.xylem.sh0"),c(site)] + sperling[c("sugar.xylem.st00"),c(site)]
