@@ -67,7 +67,6 @@ CASSIA <- function(
 
   # Check that the sites are within the sites allowed
   if ((site %in% c("Hyde", "Lettosuo", "Flakaliden_c")) == F) {stop("Unknown site: Please pick between Hyde and Lettosuo")}
-  # TODO: Flakaliden_c is a possible site, but J doesn't have any more information on it - need to check with Pauliina
 
   if (sperling_model == TRUE) {if (mychorrhiza == T) {
     mychorrhiza = FALSE
@@ -969,7 +968,6 @@ CASSIA <- function(
 
     ########### Total growth and carbon consumption
     #  Occurred growth kg C day-1 (potential growth * storage effect)
-    # TODO: should this be in vector form or for loop?
     root.tot.growth <- if (sperling_model == FALSE) storage_term * root.pot.growth else {storage_term_roots * root.pot.growth}
     height.tot.growth <- if (sperling_model == FALSE) storage_term * height.pot.growth else height.pot.growth * (0.082179938 * storage_term_phloem + 0.821799379 * storage_term_xylem.st + 0.096020683 * storage_term_xylem.sh)
     needle.tot.growth <- if (sperling_model == FALSE) storage_term * needle.pot.growth else storage_term_needles * needle.pot.growth
@@ -1056,7 +1054,6 @@ CASSIA <- function(
 
     # Carbon used for respiration
     Rg.tot <- tot.Rm <- tot.Rg <- NULL
-    # TODO: Already asked Pauliina: should the bud growth respiration be assumed to be the same as the needle respiration
     Rg.tot <- common[[c("Rg.N")]] * needle.tot.growth + common[[c("Rg.N")]] * bud.tot.growth + common[[c("Rg.R")]] * root.tot.growth + common[[c("Rg.S")]] * height.tot.growth + common[[c("Rg.S")]] * wall.tot.growth
     Rg.root <- common[[c("Rg.R")]] * root.tot.growth
     # NOTE! These are the same for sperling and non-sperling as this is the sum of possible Rm and Rg not what actually happened
