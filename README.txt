@@ -1,6 +1,6 @@
 ### CASSIA Model
 
-CASSIA model is a intra-annual growth model for an indervidual tree in boreal conditions. Seasonal cell level growth is modelled, as well as sugar and water when the appropriate settings are chosen. 
+CASSIA model is an intra-annual growth model for an individual tree in boreal conditions. Seasonal cell level growth is modelled, as well as sugar and water when the appropriate settings are chosen. 
 
 This model has been used in numerous papers (see Literature) - mainly considering Hyytiälä (SMEAR II Station, University of Helsinki).
 
