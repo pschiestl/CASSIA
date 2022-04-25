@@ -1,0 +1,81 @@
+---
+title: "The parameters in CASSIA"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Parameters_pCROB}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FLASE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(CASSIA)
+dim(parameters_p)
+colnames(parameters_p)
+```
+
+| Parameter Name   | Meaning   | Reference |
+|:----------------:|:---------:|:---------:|
+|Q10.N             |           |           |
+|Rm.NR            |||
+|Q10.S            |||
+|Rm.S             |||
+|Q10.R            |||
+|Rm.R             |||
+|sR0              |||
+|sRc              |||
+|growth.myco      |||
+|root.lifetime    |||
+|HH0              |||
+|sH0              |||
+|LH               |||
+|LH0              |||
+|sHc              |||
+|sN0              |||
+|LN               |||
+|LN0              |||
+|sNc              |||
+|HN0              |||
+|sD0.Trad         |||
+|LD               |||
+|LD0              |||
+|sDc              |||
+|sDc.T.count      |||
+|tau.Ee           |||
+|tau.El           |||
+|tau.We           |||
+|tau.Wl           |||
+|tau.GPP          |||
+|Uggla            |||
+|sB0              |||
+|sBc              |||
+|LB               |||
+|cell.d.ew        |||
+|cell.d.lw        |||
+|cell.l.ew        |||
+|cell.l.lw        |||
+|cell.wall.density.ew  |||
+|cell.wall.density.lw  |||
+|wall.thickness.ew     |||
+|wall.thickness.lw     |||
+|cell.volumn.growth.per.day.ew  |||
+|cell.volumn.growth.per.day.lw  |||
+|density_tree                   |||
+|carbon_share                   |||
+|D0                             |||
+|h0                             |||
+|n_age                          |||
+|n_lenght                       |||
+|h_increment                    |||
+|SLA                            |||
+
+
+
+
